@@ -1,0 +1,231 @@
+body, html {
+    margin: 0px;
+    padding: 0px;
+}
+
+* {
+    -webkit-box-sizing: border-box;
+    -moz-box-sizing: border-box;
+    box-sizing: border-box;
+}
+
+#container {
+    display: flex;
+    flex-direction: row;
+    position: relative;
+}
+
+
+#chart--container {
+    width: 60%;
+    flex: 1 0 60%;
+    position: relative;
+}
+
+#timelines {
+    position: sticky;
+    top: 0;
+    background: linear-gradient(rgba(255,255,255,1), 95%, rgba(255,255,255,0));
+}
+
+
+#chart {
+    width: 100%;
+    min-height: 100vh;
+}
+
+#details--container {
+    position: relative;
+    width: 40%;
+    flex: 1 0 40%;
+    font-family:Arial, Helvetica, sans-serif;
+    padding-right: 20px;
+    padding-left: 20px;
+    background-color: #F9F9F9;
+}
+
+#details {
+    width: 100%;
+    position: sticky;
+    top: 0;
+}
+
+#details--romaji {
+    color: #446688;
+    padding-bottom: 0px;
+    margin-bottom: 0px;
+}
+
+#details--kanji {
+    padding-top: 0px;
+    margin-top: 0px;
+}
+
+.subsection--header {
+    font-size: 11pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    border-bottom: 1px solid #CCCCCC;
+    margin-top: 30px;
+}
+
+.photographer--name {
+    font-family:Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    font-weight: normal;
+    text-anchor: end;
+    dominant-baseline: middle;
+    cursor: pointer;
+}
+
+.events--label {
+    font-family:Arial, Helvetica, sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-anchor: start;
+    dominant-baseline: middle;  
+    cursor: default;
+}
+
+.photographer--name:hover {
+    font-weight: bold;
+}
+
+.photographer--axis {
+    stroke: #CCCCCC;
+    stroke-width: 4;
+    pointer-events: none;
+}
+
+.photographer--unknown {
+    /* stroke-width: 2; */
+    pointer-events: none;
+}
+
+.events--axis {
+    stroke: #DDDDDD;
+    stroke-width: 10;
+}
+
+.photographer--birth {
+    stroke: #CCCCCC;
+    fill: #446688;
+    pointer-events: none;
+}
+
+.photographer--death {
+    stroke: #CCCCCC;
+    fill: #446688;
+    pointer-events: none;
+}
+
+.photographer--active {
+    stroke: #CCCCCC;
+    fill: #F6C900;
+    pointer-events: none;
+}
+
+.photographer--inactive {
+    stroke: #CCCCCC;
+    fill: #F6C900;
+    pointer-events: none;
+}
+
+.photographer--activeyears {
+    stroke: #F6C900;
+    stroke-width: 4;
+    stroke-linecap: round;
+    pointer-events: none;
+}
+
+.photographer--event {
+    stroke-width: 3;
+    stroke-linecap: round;
+    pointer-events: all;
+}
+
+
+.event--marker {
+    stroke: #446688;
+    stroke-width: 2;
+}
+
+.tooltip {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    visibility: hidden;
+    pointer-events: none;
+    width: 400px;
+    background-color: rgba(255,255,255,0.9);
+    padding: 4px;
+    font-family:Arial, Helvetica, sans-serif;
+    font-size: 10pt;
+    border: 1px solid #CCCCCC;
+    border-radius: 3px;
+
+}
+
+.event--highlight {
+    stroke: #F6C900;
+    stroke-width: 3;
+}
+
+.heading--year, .heading--name {
+    padding-top: 2px;
+    margin-top: 0px;
+    margin-bottom: 5px;
+}
+
+.gridline--vertical {
+    stroke: #EEEEEE;
+    stroke-dasharray: 5 3;
+    stroke-width: 1;
+    pointer-events: none;
+}
+
+.gridline--horizontal {
+    stroke: #DDDDDD;
+    stroke-width: 1;
+    pointer-events: none;
+    /* stroke-dasharray: 2 2; */
+}
+
+/* EVENT LABELS */
+
+.event--label {
+    display: inline-block;
+    padding: 3px;
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 3px;
+    font-size: 7pt;
+    text-transform: uppercase;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+/* ['#8dd3c7','#ffffb3','#bebada','#fb8072'] */
+.event--technology {
+    border-color: #8dd3c7;
+    background-color: rgba(141,211,199,0.8);    
+}
+
+.event--professional {
+    border-color: #ffffb3;
+    background-color: rgba(255,255,179,0.8) 
+
+}
+
+.event--institutional {
+    border-color: #bebada;
+    background-color: rgba(190,186,218,0.8);
+
+}
+
+.event--exhibition {
+    border-color: #fb8072;
+    background-color: rgba(251,128,114,0.8);
+
+
+}
