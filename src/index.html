@@ -14,14 +14,31 @@
                     <h1 id="details--romaji"></h1>
                     <h2 id="details--kanji"></h2>
                     <h3 id="details--region"></h3>
+                    <h3 id="details--lifetime"></h3>
                     <h3 class="subsection--header">Biography</h3>
                     <p id="details--bio"></p>
+                    <section id="details--events">
+                        <h3 class="subsection--header">Key Events</h3>
+                        <div id="events--container"></div>
+                    </section>
                     <section id="details--biblio">
                         <h3 class="subsection--header">Selected Bibliography</h3>
                         <ul></ul>
                     </section>    
                 </div>
             </div>    
+            <div id="timeline-expand--container">
+                <div id="timeline-expand--closebutton">Close this panel →</div>
+                <h2 id="timeline-expand--header"></h2>
+                <div id="timeline-expand--filters">
+                    <input type="checkbox" name="technology" value="T" checked autocomplete="off"><label for="technology"><span class='event--label event--technology'>Technology</span></label>
+                    <input type="checkbox" name="professional" value="P" checked autocomplete="off"><label for="professional"><span class='event--label event--professional'>Professional</span></label>
+                    <input type="checkbox" name="institutional" value="I" checked autocomplete="off"><label for="institutional"><span class='event--label event--institutional'>Institutional</span></label>
+                    <input type="checkbox" name="exhibition" value="E/P" checked autocomplete="off"><label for="exhibition"><span class='event--label event--exhibition'>Exhibitions/Publications</span></label>
+
+                </div>
+                <div id="timeline-expand--events"></div>
+            </div>
         </div>
         <script src="./main.js"></script>
     </body>

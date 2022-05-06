@@ -1,6 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&family=Noto+Sans:ital,wght@0,400;0,600;1,400&display=swap');
+
 body, html {
     margin: 0px;
     padding: 0px;
+    font-family: "Noto Sans", sans-serif;
 }
 
 * {
@@ -17,8 +20,9 @@ body, html {
 
 
 #chart--container {
+    z-index: 500;
     width: 60%;
-    flex: 1 0 60%;
+    flex: 0 1 60%;
     position: relative;
 }
 
@@ -34,31 +38,76 @@ body, html {
     min-height: 100vh;
 }
 
-#details--container {
-    position: relative;
+#details--container,
+#timeline-expand--container {
+    position: fixed;
+    top: 0px;
+    right: 0px;
     width: 40%;
+    height: 100vh;
+    overflow-y: scroll;
     flex: 1 0 40%;
-    font-family:Arial, Helvetica, sans-serif;
+    /* font-family:Arial, Helvetica, sans-serif; */
     padding-right: 20px;
     padding-left: 20px;
     background-color: #F9F9F9;
 }
 
-#details {
-    width: 100%;
-    position: sticky;
-    top: 0;
+#timeline-expand--container {
+    visibility: hidden;
 }
 
-#details--romaji {
+#timeline-expand--filters {
+    font-size: 10pt;
+    margin-top: 10px;
+}
+
+#timeline-expand--filters label {
+    margin-right: 10px;
+}
+
+
+#timeline-expand--closebutton {
+    width: 100%;
+    margin: 0px;
+    padding: 15px 0px 0px 0px;
+    color: #446688;
+    font-size: 10pt;
+    text-align: right;
+}
+
+#timeline-expand--closebutton:hover {
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#timeline-expand--events {
+    margin-top: 20px;
+}
+
+
+#details {
+    width: 100%;
+    /* position: sticky; */
+    /* top: 0; */
+    padding-bottom: 50px;
+}
+
+#details--romaji, #timeline-expand--header {
     color: #446688;
     padding-bottom: 0px;
     margin-bottom: 0px;
+    font-family: "Noto Sans", sans-serif;
+    font-weight: 600;
 }
+
+
 
 #details--kanji {
     padding-top: 0px;
     margin-top: 0px;
+    font-family: "Noto Sans JP", sans-serif;
+    font-weight: 700;
 }
 
 .subsection--header {
@@ -70,27 +119,46 @@ body, html {
 }
 
 .photographer--name {
-    font-family:Arial, Helvetica, sans-serif;
-    font-size: 10pt;
-    font-weight: normal;
+    font-size: 9pt;
+    font-weight: 400;
     text-anchor: end;
     dominant-baseline: middle;
     cursor: pointer;
 }
 
-.events--label {
-    font-family:Arial, Helvetica, sans-serif;
+.name--romaji {
+    font-family: "Noto Sans", sans-serif;
+}
+
+.name--kanji {
+    font-family: "Noto Sans JP", sans-serif;
+}
+
+.events--label, .expand--label {
+    font-family: "Noto Sans", sans-serif;
     font-size: 8pt;
-    font-weight: bold;
+    font-weight: 600;
     text-transform: uppercase;
     text-anchor: start;
     dominant-baseline: middle;  
     cursor: default;
 }
 
-.photographer--name:hover {
-    font-weight: bold;
+.expand--label {
+    font-weight: 300;
+    text-transform: unset;
+    fill: #446688; 
+    text-anchor: end;
 }
+
+.expand--label:hover {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* .photographer--name:hover {
+    font-weight: bold;
+} */
 
 .photographer--axis {
     stroke: #CCCCCC;
@@ -140,7 +208,7 @@ body, html {
 }
 
 .photographer--event {
-    stroke-width: 3;
+    stroke-width: 2;
     stroke-linecap: round;
     pointer-events: all;
 }
@@ -160,7 +228,7 @@ body, html {
     width: 400px;
     background-color: rgba(255,255,255,0.9);
     padding: 4px;
-    font-family:Arial, Helvetica, sans-serif;
+    /* font-family:Arial, Helvetica, sans-serif; */
     font-size: 10pt;
     border: 1px solid #CCCCCC;
     border-radius: 3px;
@@ -201,7 +269,7 @@ body, html {
     border-style: solid;
     border-radius: 3px;
     font-size: 7pt;
-    text-transform: uppercase;
+    /* text-transform: uppercase; */
     margin-left: 4px;
     margin-right: 4px;
 }
@@ -228,4 +296,62 @@ body, html {
     background-color: rgba(251,128,114,0.8);
 
 
+}
+
+
+.marker--contrast {
+    fill: #FFFFFF;
+}
+
+.timeline--axis text {
+    font-family: "Noto Sans", sans-serif;
+    font-size: 8pt;
+}
+
+
+#events--container {
+    width: 100%;
+}
+
+.event--row {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    margin-bottom: 10px;
+    margin-top: 30px;
+    border-top: 1px dotted #CCCCCC;
+    padding-top: 10px;
+}
+
+.event--row .year {
+    flex: 1 0 20%;
+    width: 20%;
+    font-weight: 600;
+    text-align: left;
+    padding-left: 20px;
+}
+
+/* .event--row .categories {
+    flex: 1 0 10%;
+    width: 10%;
+    margin-right: 20px;
+} */
+
+.event--row .event {
+    flex: 1 0 80%;
+    width: 80%;
+}
+
+#details--biblio ul {
+    list-style-type: none;
+    padding-left: 20px;
+}
+
+#details--biblio li {
+
+    margin-bottom: 10px;
+}
+
+.event--hidden {
+    display: none;
 }

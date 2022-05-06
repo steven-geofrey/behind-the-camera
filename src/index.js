@@ -111,10 +111,14 @@ Promise.all(PROMISES).then(response => {
         container: d3.select("#details"),
         romaji: d3.select("#details--romaji"),
         kanji: d3.select("#details--kanji"),
-        region: d3.select("#details--region"),
+        // region: d3.select("#details--region"),
+        lifetime: d3.select("#details--lifetime"),
         bio: d3.select("#details--bio"),
+        events: d3.select("#details--events"),
         bibliography: d3.select("#details--biblio")
     };
+
+    const timelineExpandContainer = d3.select("#timeline-expand--container");
 
 
 
@@ -136,11 +140,14 @@ Promise.all(PROMISES).then(response => {
 
 
     // UNIT_HEIGHT: The height of a single photographer timeline
-    const UNIT_HEIGHT = 30;
+    const UNIT_HEIGHT = 60;
 
     let yearParse = d3.timeParse("%Y");
     let plottingArea = svg.append("g")
         .attr("transform", `translate(0, ${20})`);
+
+
+    let selectedPhotographer = "Shima Ryū";
 
     PHOTOGRAPHERS.forEach((photographer, i) => {
 
@@ -251,6 +258,7 @@ Promise.all(PROMISES).then(response => {
                     .attr("width", boxMarkerWidth)
                     .attr("height", boxMarkerWidth);
 
+
             } else if(vital === birth) {
 
                 g.append("path")
@@ -267,6 +275,13 @@ Promise.all(PROMISES).then(response => {
 
             }
 
+            // Draw contrasting circle in foreground for precise reading
+            g.append("circle")
+            .attr("class", "marker--contrast")
+            .attr("cx", TIMESCALE(vital))
+            .attr("cy", 0)
+            .attr("r", 1);
+        
         });
 
         // If photographer has individual timeline events, draw them
@@ -277,9 +292,9 @@ Promise.all(PROMISES).then(response => {
                 .join("line")
                     .attr("class", "photographer--event")
                     .attr("x1", pe => TIMESCALE(yearParse(pe.year)))
-                    .attr("y1", -7)
+                    .attr("y1", -12)
                     .attr("x2", pe => TIMESCALE(yearParse(pe.year)))
-                    .attr("y2", 7)
+                    .attr("y2", 0)
                     .attr("stroke", pe => {
                         let yp = yearParse(pe.year);
                         if(yp >= active && yp <= inactive) {
@@ -300,26 +315,89 @@ Promise.all(PROMISES).then(response => {
         let whichVital = birth || active || inactive || death;
 
         // Draw name label
-        let nameLabel = g.append("text")
+
+        let nameLabel = g.append("g")
+            .attr("transform", `translate(${TIMESCALE(whichVital)}, 0)`);
+
+        let kanjiLabel = nameLabel.append("text")
             .attr("class", "photographer--name")
-            .attr("x", TIMESCALE(whichVital))
-            .attr("y", 0)
+            .classed("name--kanji", true)
+            .attr("x", 0)
+            .attr("y", -8)
+            .attr("dx", "-6pt")
+            .text(photographer.kanji);
+
+        let romajiLabel = nameLabel.append("text")
+            .attr("class", "photographer--name")
+            .classed("name--romaji", true)
+            .attr("x", 0)
+            .attr("y", 8)
             .attr("dx", "-6pt")
             .text(photographer.romaji);
 
 
+
         // On label click, open details
 
+        nameLabel.on("mouseover", () => {
+
+            if(photographer.romaji === selectedPhotographer) return;
+
+            nameLabel.selectAll("text")
+                .style("font-weight", "bold");
+        }).on("mouseout", () => {
+
+            if(photographer.romaji === selectedPhotographer) return;
+
+            nameLabel.selectAll("text")
+                .style("font-weight", "normal");
+        });
 
         nameLabel.on("click", () => {
+
+
+            // If timeline is opened, close it
+            timelineExpandContainer.style("visibility", "hidden");
+
+            selectedPhotographer = photographer.romaji;
+            
+            svg.selectAll(".photographer--name")
+                .style("font-weight", "normal");
+
+            nameLabel.selectAll("text")
+                .style("font-weight", "bold");
+
             for(let handle in details) {
 
                 let el = details[handle];
 
                 if(handle === "romaji") el.html(photographer.romaji);
                 if(handle === "kanji") el.html(photographer.kanji);
-                if(handle === "region" && photographer.region) el.html(photographer.region);
+                // if(handle === "region" && photographer.region) el.html(photographer.region);
+                if(handle === "lifetime") {
+                    let birthYear = photographer.birth ? `b. ${photographer.birth}` : "birth unknown";
+                    let deathYear = photographer.death ? `d. ${photographer.death}` : "death unknown";
+                    let regionValue = photographer.region || "region unknown";
+                    el.html(`(${birthYear} &ndash; ${deathYear}, ${regionValue})`);
+                }
                 if(handle === "bio") el.html(photographer.bio);
+                if(handle === "events") {
+                    let keyEvents = PHOTOGRAPHER_TIMELINE.filter(pt => pt.name === photographer.romaji);
+                    if(photographerEvents.length > 0) {
+            
+                        el.select("#events--container").selectAll("*").remove();
+                        el.select("#events--container").selectAll(".event--row")
+                            .data(keyEvents)
+                            .join("div")
+                                .attr("class", "event--row")
+                                .html(k => `<div class='year'>${k.year}</div><div class='event'>${k.event}</div>`);
+
+                        el.style("visibility", "visible");
+                    } else {
+                        el.style("visibility", "hidden");
+                    }
+                }
+
                 if(handle === "bibliography") {
                     let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === photographer.romaji);
 
@@ -341,7 +419,7 @@ Promise.all(PROMISES).then(response => {
         });
 
         // Initialize details container with Shima Ryu for demonstration
-        if(photographer.romaji === "Shima Ryū") nameLabel.dispatch("click");
+        if(photographer.romaji === selectedPhotographer) nameLabel.dispatch("click");
 
 
     });
@@ -383,11 +461,18 @@ Promise.all(PROMISES).then(response => {
         .attr("width", WIDTH);
 
     let axis = timelinesContainer.append("g")
+        .attr("class", "timeline--axis")
         .attr("transform", `translate(0, ${MARGIN.top})`)
         .call(d3.axisTop().scale(TIMESCALE).tickValues(years));
 
-    // Draw the global events timeline
-    let tooltip = d3.select("#container")
+    // Draw the timeline tooltip
+    let timelinesTooltip = d3.select("#timelines")
+        .append("div")
+        .attr("class", "tooltip");
+
+
+    // Draw the individual photographers tooltip
+    let photographerTooltip = d3.select("#chart--container")
         .append("div")
         .attr("class", "tooltip");
 
@@ -409,6 +494,12 @@ Promise.all(PROMISES).then(response => {
             .attr("y", -15)
             .text(events === GLOBAL_TIMELINE ? "Global Events" : "Japan Events");
 
+        let expandLabel = g.append("text")
+            .attr("class", "expand--label")
+            .attr("x", WIDTH - MARGIN.right)
+            .attr("y", -15)
+            .text("Expand →")
+
         let timelineAxis = g.append("line")
             .attr("class", "events--axis")
             .attr("x1", MARGIN.left)
@@ -429,53 +520,97 @@ Promise.all(PROMISES).then(response => {
 
         markers.on("mouseover", function() { mouseOver("global", g, d3.select(this)); });
 
-        // events.forEach(e => {
-        //     let x = TIMESCALE(yearParse(e.year));
-        //     let marker = g.append("line")
-        //         .attr("class", "event--marker")
-        //         .attr("r", 5)
-        //         .attr("x1", x)
-        //         .attr("y1", -6)
-        //         .attr("x2", x)
-        //         .attr("y2", 6);
-
-        //     marker.on("mouseover", (event, datum, el) => {
-
-        //         mouseOver(e, g, el);
-        //         // tooltip.style("visibility", "visible")
-        //         //     .style("left", `${x}px`)
-        //         //     .style("top", `${y}px`)
-        //         //     .html(`<b>${e.year}</b><br>${e.event}${e.citation ? "<br><br><i>Citation:</i> " + e.citation : null}`);
-
-        //     }).on("mouseout", mouseout);
-        // });
-
         timelineAxis.on("mousemove", (event) => {
-            console.log(events)
 
             let position = d3.pointer(event)[0];
             let date = TIMESCALE.invert(position);
             let i = d3.bisectCenter(events.map(e => !yearParse(e.year) ? null : yearParse(e.year).getTime()), date.getTime());
             let el = g.selectAll(".event--marker").filter((em,j) => j == i);
-            // let closest = events[i];
 
             mouseOver("global", g, el);
 
-            // tooltip.style("visibility", "visible")
-            //     .style("left", `${TIMESCALE(yearParse(closest.year))}px`)
-            //     .style("top", `${y + tooltipMargin}px`)
-            //     .html(`<b>${closest.year}</b><br>${closest.event}${closest.citation ? "<br><br><i>Citation:</i> " + closest.citation : null}`);
-
-            // g.selectAll(".event--marker").classed("event--highlight", false);
-            // g.selectAll(".event--marker").filter((em,j) => j == i).classed("event--highlight", true);
 
         }).on("mouseout", () => { mouseOut("global"); });
 
-        // }).on("mouseout", () => {
-        //     g.selectAll(".event--marker").classed("event--highlight", false);
-        //     tooltip.style("visibility", "hidden");
-        // });
 
+        // Bind timeline expand option
+
+        expandLabel.on("click", () => {
+
+
+            if(events === GLOBAL_TIMELINE) {
+                d3.select("#timeline-expand--filters").style("display", "block");
+            } else {
+                d3.select("#timeline-expand--filters").style("display", "none");
+            }
+
+            timelineExpandContainer.select("#timeline-expand--events").selectAll("*").remove();
+
+            timelineExpandContainer.select("#timeline-expand--header").html(events === GLOBAL_TIMELINE ? "Events in Global Photography" : "Events in Japanese Photography");
+
+
+            timelineExpandContainer.select("#timeline-expand--events").selectAll(".event--row")
+            .data(events)
+            .join("div")
+                .attr("class", "event--row")
+                .html(k => {
+
+                    if(events === GLOBAL_TIMELINE) {
+                        let eventCodes = [];
+
+                        for(let c in codeValues) {
+                            if(k["coding"].includes(c)) eventCodes.push(c);
+                        }
+        
+                        let spans = [];
+                        eventCodes.forEach(ec => {
+                            let v = codeValues[ec];
+                            spans.push(`<span class='event--label ${v.className}'>${v.label}</span>`);
+                        });
+
+                        return `<div class='year'>${k.year}</div><div class='event'>${spans.join("")}<br><br>${k.event}</div>`;
+        
+                    } else {
+
+                        return `<div class='year'>${k.year}</div><div class='event'>${k.event}</div>`
+
+                    }
+                });
+
+
+            timelineExpandContainer.style("visibility", "visible");
+
+        });
+    });
+
+    d3.select("#timeline-expand--closebutton").on("click", () => {
+        timelineExpandContainer.style("visibility", "hidden");
+    });
+
+    let whichSelectedCategories = [...Object.keys(codeValues)];
+
+    d3.select("#timeline-expand--filters").selectAll("input").on("change", function() {
+
+        // Get all currently-checked categories
+        whichSelectedCategories = d3.select("#timeline-expand--filters").selectAll("input:checked").nodes().map(n => n.value);
+
+        
+        timelineExpandContainer.selectAll(".event--row")
+            .classed("event--hidden", k => !whichSelectedCategories.some(c => k.coding.includes(c)));
+
+        // let value = d3.select(this).property("value");
+        // let isChecked = d3.select(this).property("checked");
+
+        // let filteredEvents = timelineExpandContainer.selectAll(".event--row")
+        //     .filter(e => e.coding.includes(value));
+
+
+        // if(isChecked) {
+        //     filteredEvents.classed("event--hidden", false);
+        // } else {
+
+        //     filteredEvents.classed("event--hidden", true);
+        // }
     });
 
 
@@ -503,7 +638,7 @@ Promise.all(PROMISES).then(response => {
 
         if(type === "global") {
         // mouseover event for global timeline 
-            tooltip.style("visibility", "visible")
+            timelinesTooltip.style("visibility", "visible")
             .style("left", `${TIMESCALE(yearParse(d.year))}px`)
             .style("top", `${group.datum()['yPosition'] + tooltipMargin}px`);
 
@@ -511,7 +646,6 @@ Promise.all(PROMISES).then(response => {
             if("coding" in d) {
                 let eventCodes = [];
 
-                console.log(d["coding"])
                 for(let c in codeValues) {
                     if(d["coding"].includes(c)) eventCodes.push(c);
                 }
@@ -523,10 +657,10 @@ Promise.all(PROMISES).then(response => {
                 });
                 
 
-                tooltip.html(`<h3 class='heading--year'>${d.year} ${spans.join("")}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
+                timelinesTooltip.html(`<h3 class='heading--year'>${d.year} ${spans.join("")}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
 
             } else {
-                tooltip.html(`<h3 class='heading--year'>${d.year}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
+                timelinesTooltip.html(`<h3 class='heading--year'>${d.year}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
 
             }
 
@@ -537,11 +671,11 @@ Promise.all(PROMISES).then(response => {
         } else if(type === "individual") {
         // mouseover event for individual photographer timeline
 
-            tooltip.style("visibility", "visible")
+            photographerTooltip.style("visibility", "visible")
                 .style("left", `${TIMESCALE(yearParse(d.year)) + tooltipMargin}px`)
                 .style("top", `${+timelinesContainer.attr("height") + group.datum()['yPosition'] + tooltipMargin}px`);
 
-            tooltip.html(`<h3 class='heading--name'>${d.name}</h3><h4 class='heading--year'>${d.year}</h4><br>${d.event}`);
+            photographerTooltip.html(`<h3 class='heading--name'>${d.name}</h3><h4 class='heading--year'>${d.year}</h4><br>${d.event}`);
 
         }
 
@@ -553,13 +687,19 @@ Promise.all(PROMISES).then(response => {
 
         if(type === "global") {
             timelinesContainer.selectAll(".event--marker").classed("event--highlight", false);
-            tooltip.style("visibility", "hidden");
+            timelinesTooltip.style("visibility", "hidden");
                 
         } else if(type === "individual") {
-            tooltip.style("visibility", "hidden");
+            photographerTooltip.style("visibility", "hidden");
 
         }
     };
+
+    svg.on("click", () => {
+        photographerTooltip.style("visibility", "hidden");
+        timelinesTooltip.style("visibility", "hidden");
+
+    })
 
 
 });
