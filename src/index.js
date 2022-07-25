@@ -1,30 +1,32 @@
 require("./style.css");
 import * as d3 from "d3";
+import { transition } from "d3";
 
 const clean = function(d) {
     return d.trim();
 }
 
+
 const PROMISES = [
-    d3.csv("./data/2022-04-14_global-timeline.csv", d => {
-        if(d['Year'] === "") return;
+    d3.csv("./data/2022-07-23/2022-07-23_globalPhotoHistoryTimeline.csv", d => {
+        if(d['Year'] === "" || d['Event'] === "") return;
         return {
-            year: d['Year'],
+            year: d['Year'] === "1826/7" ? 1826 : +d['Year'], // TEMPORARY PATCH FOR DATA
+            displayYear: d['Year'],
             event: d['Event'],
-            coding: d['Coding'],
-            citation: d['Citations'],
-            images: d['Images']
+            coding: d['Coding']
         }
     }),
-    d3.csv("./data/2022-04-14_japan-timeline.csv", d => {
-        if(d['YEAR'] === "") return;
+    d3.csv("./data/2022-07-23/2022-07-23_japanPhotoHistoryTimeline.csv", d => {
+        if(d['YEAR'] === "" || d['Event'] === "") return;
         return {
-            year: d['YEAR'],
-            event: d['EVENT'],
-            citation: d['CITATION']
+            year: +d['Year'],
+            displayYear: d['Year'],
+            event: d['Event'],
+            citation: d['Citation']
         }
     }),
-    d3.csv("./data/2022-04-14_photographer-bibliography.csv", d => {
+    d3.csv("./data/2022-07-23/2022-07-23_selectedBibliography.csv", d => {
         if(d['Name'] === "") return;
         return {
             name: clean(d['Name']),
@@ -32,53 +34,97 @@ const PROMISES = [
         }
 
     }),
-    d3.csv("./data/2022-04-14_photographer-timelines.csv", d => {
+    d3.csv("./data/2022-07-23/2022-07-23_individualBioTimeline.csv", d => {
         if(d['Name'] === "") return;
+        if(d['Event'] === "") return;
         return {
             name: clean(d['Name']),
-            year: d['Year'],
+            year: +d['Year'],
+            displayYear: d['Display Year (if different)'] === "" ? +d['Year'] : d['Display Year (if different)'],
             event: d['Event'],
             image: d['Image'],
             caption: d['Image caption']
         }
     }),
-    d3.csv("./data/2022-04-14_photographers.csv", d => {
+    d3.csv("./data/2022-07-23/2022-07-23_womenPhotographersTimeline.csv", d => {
         if(d['Name - romaji'] === "") return;
-        return {
+
+        let r = {
             romaji: clean(d['Name - romaji']),
             kanji: d['Name - kanji'],
-            region: d['Region'],
-            birth: d['Birth date'] || null,
-            active: d['Active date'] || null,
-            inactive: d['Inactive date'] || null,
-            death: d['Death date'] || null,
+            birthRegion: d['Birth region'],
+            deathRegion: d['Death region'],
             bio: d['Bio'],
+            bioPreview: d['Bio Preview'],
             link: d['Link'],
             image: ['Image'],
             caption: d['Image Caption']
+        };
+
+        let birth = d["Birth date"];
+        let death = d["Death date"];
+        let active = d["Active date"];
+        let inactive = d["Inactive date"];
+
+        if(birth.toLowerCase() === "unknown") {
+            r.birth = "unknown";
+        } else {
+            r.birth = +d["Birth date"];
         }
+
+        if(death.toLowerCase() === "unknown") {
+            r.death = "unknown";
+        } else if(death === "") {
+            r.death = null;
+        } else {
+            r.death = +d["Death date"];
+        }
+
+        if(active.toLowerCase() === "unknown") {
+            r.active = "unknown";
+        } else if(active === "") {
+            r.active = null;
+        } else {
+            r.active = +d["Active date"];
+        }
+
+        if(inactive.toLowerCase() === "unknown") {
+            r.inactive = "unknown";
+        } else if(inactive === "") {
+            r.inactive = null;
+        } else {
+            r.inactive = +d["Inactive date"];
+        }
+
+        return r;
+
     })
 ];
 
 Promise.all(PROMISES).then(response => {
 
+
+    let yearParse = d3.timeParse("%Y");
+
+
     const GLOBAL_TIMELINE = response[0],
         JAPAN_TIMELINE = response[1],
         PHOTOGRAPHER_BIBLIO = response[2],
         PHOTOGRAPHER_TIMELINE = response[3],
-        PHOTOGRAPHERS = response[4];
+        PHOTOGRAPHERS = response[4].sort((a,b) => {
+            let aValue = a.birth === "unknown" ? a.active : a.birth;
+            let bValue = b.birth === "unknown" ? b.active : b.birth;
+            return yearParse(aValue) - yearParse(bValue);
+        })
 
-
-    console.log(GLOBAL_TIMELINE);
-    console.log(JAPAN_TIMELINE);
-    console.log(PHOTOGRAPHERS);
-    console.log(PHOTOGRAPHER_TIMELINE);
-    console.log(PHOTOGRAPHER_BIBLIO);
-
-
+        console.log(JAPAN_TIMELINE)
 
     const WIDTH = document.querySelector("#chart").clientWidth;
-    const MARGIN = {top: 40, left: 50, right: 50, bottom: 50};
+    const MARGIN = {top: 40, left: 50, right: 50, bottom: 150};
+    const transitionDuration = 250;
+    const fadeOpacity = 0.4;
+    const boxMarkerWidth = 12;
+
 
     let svg = d3.select("#chart")
         .append("svg")
@@ -106,7 +152,13 @@ Promise.all(PROMISES).then(response => {
 
 
 
+
     // Handles for details container
+
+    const timelineExpandContainer = d3.select("#timeline-expand--container");
+    const detailsContainer = d3.select("#details--container");
+    const chartControlsContainer = d3.select("#chart--controls");
+
     const details = {
         container: d3.select("#details"),
         romaji: d3.select("#details--romaji"),
@@ -117,8 +169,6 @@ Promise.all(PROMISES).then(response => {
         events: d3.select("#details--events"),
         bibliography: d3.select("#details--biblio")
     };
-
-    const timelineExpandContainer = d3.select("#timeline-expand--container");
 
 
 
@@ -142,25 +192,40 @@ Promise.all(PROMISES).then(response => {
     // UNIT_HEIGHT: The height of a single photographer timeline
     const UNIT_HEIGHT = 60;
 
-    let yearParse = d3.timeParse("%Y");
     let plottingArea = svg.append("g")
-        .attr("transform", `translate(0, ${20})`);
+        .attr("transform", `translate(0, 20)`);
 
-
-    let selectedPhotographer = "Shima Ryū";
+    let selectedPhotographer;
 
     PHOTOGRAPHERS.forEach((photographer, i) => {
 
-        let g = plottingArea.append("g")
-            .datum({yPosition: UNIT_HEIGHT * i})
-            .attr("transform", `translate(0, ${UNIT_HEIGHT * i})`);
 
         let birth = yearParse(photographer.birth);
         let active = yearParse(photographer.active);
         let inactive = yearParse(photographer.inactive);
         let death = yearParse(photographer.death);
 
-        console.log(active,inactive)
+        // Determine which vital to use to position label
+        let whichVital = birth || active || inactive || death;
+
+        let stillLiving;
+        let deathYear;
+        // If photographer.death is null (empty), then photographer is still living
+        if(photographer.death === null) {
+            deathYear = "";
+            stillLiving = true;
+        } else {
+            deathYear = photographer.death === "unknown" ? "d. unknown" : `d. ${photographer.death}`;
+            stillLiving = false;
+        }
+
+        console.log(photographer.romaji, stillLiving);
+
+        let g = plottingArea.append("g")
+            .attr("class", "photographer--g")
+            .datum({whichVital: whichVital, stillLiving: stillLiving, yPosition: UNIT_HEIGHT * i, detail: photographer})
+            .attr("opacity", 1)
+            .attr("transform", d => `translate(0, ${d.yPosition})`);
 
         // Draw dotted grid line
         g.append("line")
@@ -209,7 +274,7 @@ Promise.all(PROMISES).then(response => {
                 .attr("x", TIMESCALE(start))
                 .attr("y", -2)
                 .attr("width", 40)
-                .attr("height", 4)
+                .attr("height", 6)
                 .attr("fill", "url(#unknownGradient)")
                 .attr("stroke","none");
 
@@ -226,7 +291,11 @@ Promise.all(PROMISES).then(response => {
         }
     
         // Size of death square marker
-        const boxMarkerWidth = 9;
+        const formatTime = d3.timeFormat("%Y");
+
+        let vitalsGroup = g.append("g")
+            .attr("class", "vitals--g")
+            .attr("opacity", 0);
 
         [birth, active, inactive, death].forEach(vital => {
             // If vital does not have value, don't draw anything
@@ -263,15 +332,22 @@ Promise.all(PROMISES).then(response => {
 
                 g.append("path")
                     .attr("class", className)
-                    .attr("d", d3.symbol(d3.symbolTriangle).size(64))
+                    .attr("d", d3.symbol(d3.symbolTriangle).size(110))
                     .attr("transform", `translate(${TIMESCALE(vital)},0)rotate(90)`);
 
             } else {
-                g.append("circle")
-                    .attr("r", 5)
-                    .attr("class", className)
-                    .attr("cx", TIMESCALE(vital))
-                    .attr("cy", 0);
+                // If the inactive end year and death year are the same,
+                // don't draw a circle for inactive end year
+                // Also, using the raw photographer.death/inactive properties because
+                // `death` and `inactive` are JS Date objects
+                if(!(vital === inactive && photographer.death === photographer.inactive)) {
+                    
+                    g.append("circle")
+                        .attr("r", 8)
+                        .attr("class", className)
+                        .attr("cx", TIMESCALE(vital))
+                        .attr("cy", 0);
+                }
 
             }
 
@@ -280,44 +356,91 @@ Promise.all(PROMISES).then(response => {
             .attr("class", "marker--contrast")
             .attr("cx", TIMESCALE(vital))
             .attr("cy", 0)
-            .attr("r", 1);
+            .attr("r", 2);
+
+            let vitalLabel;
+            if(vital === birth) {
+                vitalLabel = "Born";
+            } else if(vital === active) {
+                vitalLabel = "Active";
+            } else if(vital === inactive) {
+                vitalLabel = "Inactive";
+            } else if(vital === death) {
+                vitalLabel = "Died";
+            }
+
+            const vitalLabelMargin = 20;
+            // Add vital label
+            if(vital === active) {
+                if(active && inactive) {
+                    vitalsGroup.append("text")
+                        .attr("class", "vitals--label")
+                        // .attr("transform", `translate(${TIMESCALE(vital)},0)rotate(-30)translate(-${TIMESCALE(vital)},0)`)
+                        .attr("x", TIMESCALE(vital))
+                        .attr("y", -vitalLabelMargin)
+                        .text(`${vitalLabel} ${formatTime(active)} – ${formatTime(inactive)}`);
+
+                } else if(stillLiving) {
+                    vitalsGroup.append("text")
+                        .attr("class", "vitals--label")
+                        // .attr("transform", `translate(${TIMESCALE(vital)},0)rotate(-30)translate(-${TIMESCALE(vital)},0)`)
+                        .attr("x", TIMESCALE(vital))
+                        .attr("y", -vitalLabelMargin)
+                        .text(`${vitalLabel} since ${formatTime(vital)}`);
+
+                } else {
+                    vitalsGroup.append("text")
+                        .attr("class", "vitals--label")
+                        // .attr("transform", `translate(${TIMESCALE(vital)},0)rotate(-30)translate(-${TIMESCALE(vital)},0)`)
+                        .attr("x", TIMESCALE(vital))
+                        .attr("y", -vitalLabelMargin)
+                        .text(`${vitalLabel} from ${formatTime(vital)}`);
+
+                }
+            } else if(vital === birth || vital === death) {
+                vitalsGroup.append("text")
+                    .attr("class", "vitals--label")
+                    // .attr("transform", `translate(${TIMESCALE(vital)},0)rotate(-30)translate(-${TIMESCALE(vital)},0)`)
+                    .attr("x", TIMESCALE(vital))
+                    .attr("y", vitalLabelMargin)
+                    .text(`${vitalLabel} ${formatTime(vital)}`);
+
+            }
         
         });
 
         // If photographer has individual timeline events, draw them
         let photographerEvents = PHOTOGRAPHER_TIMELINE.filter(pt => pt.name === photographer.romaji);
-        if(photographerEvents.length > 0) {
-            let photographerEventMarkers = g.selectAll(".photographer--event")
-                .data(photographerEvents)
-                .join("line")
-                    .attr("class", "photographer--event")
-                    .attr("x1", pe => TIMESCALE(yearParse(pe.year)))
-                    .attr("y1", -12)
-                    .attr("x2", pe => TIMESCALE(yearParse(pe.year)))
-                    .attr("y2", 0)
-                    .attr("stroke", pe => {
-                        let yp = yearParse(pe.year);
-                        if(yp >= active && yp <= inactive) {
-                            return "#F6C900";
-                        } else {
-                            return "#CCCCCC";
-                        }
-                    })
-                    .lower();
+        // if(photographerEvents.length > 0) {
+        //     let photographerEventMarkers = g.selectAll(".photographer--event")
+        //         .data(photographerEvents)
+        //         .join("line")
+        //             .attr("class", "photographer--event")
+        //             .attr("x1", pe => TIMESCALE(yearParse(pe.year)))
+        //             .attr("y1", -12)
+        //             .attr("x2", pe => TIMESCALE(yearParse(pe.year)))
+        //             .attr("y2", 0)
+        //             .attr("stroke", pe => {
+        //                 let yp = yearParse(pe.year);
+        //                 if(yp >= active && yp <= inactive) {
+        //                     return "#F6C900";
+        //                 } else {
+        //                     return "#CCCCCC";
+        //                 }
+        //             })
+        //             .lower();
 
-            photographerEventMarkers.on("mouseover", function() {
-                console.log("grouppppp",g.datum())
-                mouseOver("individual", g, d3.select(this));
-            }).on("mouseout", () => { mouseOut("individual"); })
-        }
-
-        // Determine which vital to use to position label
-        let whichVital = birth || active || inactive || death;
+        //     photographerEventMarkers.on("mouseover", function() {
+        //         console.log("grouppppp",g.datum())
+        //         mouseOver("individual", g, d3.select(this));
+        //     }).on("mouseout", () => { mouseOut("individual"); })
+        // }
 
         // Draw name label
 
         let nameLabel = g.append("g")
-            .attr("transform", `translate(${TIMESCALE(whichVital)}, 0)`);
+            .attr("class", "photographer-name--g")
+            .attr("transform", d => `translate(${TIMESCALE(d.whichVital) - 10}, 0)`);
 
         let kanjiLabel = nameLabel.append("text")
             .attr("class", "photographer--name")
@@ -335,37 +458,125 @@ Promise.all(PROMISES).then(response => {
             .attr("dx", "-6pt")
             .text(photographer.romaji);
 
+        // Now draw rectangle behind group to capture mouseover
+        let nameLabelBoundingRect = nameLabel.node().getBBox();
+        let nameLabelRect = nameLabel.append("rect")
+            .attr("class", "photographer--name-bounding-rect")
+            .attr("x", nameLabelBoundingRect.x)
+            .attr("y", nameLabelBoundingRect.y)
+            .attr("width", nameLabelBoundingRect.width)
+            .attr("height", nameLabelBoundingRect.height)
+            .lower();
 
 
         // On label click, open details
+        const transitionOffset = 30;
+        nameLabelRect.on("mouseover", (e,d) => {
 
-        nameLabel.on("mouseover", () => {
+
+            timelinesTooltip.style("visibility", "hidden");
 
             if(photographer.romaji === selectedPhotographer) return;
 
+            let thisGroup = d3.selectAll(".photographer--g").filter(p => p.detail.romaji === photographer.romaji);
+
+            let regex = new RegExp(photographer.romaji, 'i');
+
             nameLabel.selectAll("text")
-                .style("font-weight", "bold");
+                .classed("selected", true);
+
+            let y = g.datum().yPosition;
+            let x = TIMESCALE(d.whichVital) - 20;
+
+
+            // if(x < WIDTH / 2) {
+                // photographerTooltip.style("visibility", "visible")
+                // .style("opacity", 0)
+                // .style("top", `${y+transitionOffset}px`)
+                // .style("left", `${x}px`)
+                // .style("right", "unset")
+                // .html(() => {
+                //     let previewBio = photographer.bio.split(". ")[0];
+                //     let previewBioWithBoldName = previewBio.replace(regex, `<b>${photographer.romaji}</b>`);
+                //     return `<p>${previewBioWithBoldName}${previewBio.length > 1 ? "." : ""} <span class='see-more'>Click name to read more →</p>`;
+                // });
+            // } else {
+            photographerTooltip.style("visibility", "visible")
+                .style("opacity", 0)
+                .style("top", `${y+transitionOffset}px`)
+                .style("right", `${WIDTH - x + nameLabel.node().getBBox().width + 10}px`)
+                .style("left", "unset")
+                .html(() => {
+                    let previewBio = photographer.bioPreview;
+                    let previewBioWithBoldName = previewBio.replace(regex, `<b>${photographer.romaji}</b>`);
+                    return `<p>${previewBioWithBoldName} <span class='see-more'>Click name to read more →</p>`;
+                });
+
+            // }
+
+            
+            photographerTooltip.transition()
+                .duration(transitionDuration)
+                .style("top", `${y}px`)
+                .style("opacity", 1);
+
+            d3.selectAll(".photographer--g")
+                .transition()
+                .duration(transitionDuration)
+                .attr("opacity", fadeOpacity);
+
+            d3.selectAll(".photographer--g").filter(p => p.detail.romaji === photographer.romaji)
+                .interrupt()
+                .transition()
+                .duration(transitionDuration)
+                .attr("opacity", 1);
+
+            // Make labels for vitals visible
+
+            thisGroup.select(".vitals--g")
+                .transition()
+                .duration(transitionDuration)
+                .attr("opacity", 1);
+
         }).on("mouseout", () => {
 
             if(photographer.romaji === selectedPhotographer) return;
 
             nameLabel.selectAll("text")
-                .style("font-weight", "normal");
+                .classed("selected", false);
+
+            photographerTooltip.style("visibility", "hidden");
+
+            d3.selectAll(".photographer--g")
+                .interrupt()
+                .transition()
+                .duration(transitionDuration)
+                .attr("opacity", 1);
+
+            d3.selectAll(".vitals--g")
+                .transition()
+                .duration(transitionDuration)
+                .attr("opacity", 0);
+
+
         });
 
-        nameLabel.on("click", () => {
+        nameLabelRect.on("click", () => {
 
 
             // If timeline is opened, close it
             timelineExpandContainer.style("visibility", "hidden");
+            timelinesTooltip.style("visibility", "hidden");
+            d3.selectAll(".search-tooltip").remove();
+
 
             selectedPhotographer = photographer.romaji;
             
-            svg.selectAll(".photographer--name")
-                .style("font-weight", "normal");
+            // svg.selectAll(".photographer--name")
+            //     .classed("selected", false);
 
             nameLabel.selectAll("text")
-                .style("font-weight", "bold");
+                .classed("selected", true);
 
             for(let handle in details) {
 
@@ -375,31 +586,40 @@ Promise.all(PROMISES).then(response => {
                 if(handle === "kanji") el.html(photographer.kanji);
                 // if(handle === "region" && photographer.region) el.html(photographer.region);
                 if(handle === "lifetime") {
-                    let birthYear = photographer.birth ? `b. ${photographer.birth}` : "birth unknown";
-                    let deathYear = photographer.death ? `d. ${photographer.death}` : "death unknown";
-                    let regionValue = photographer.region || "region unknown";
-                    el.html(`(${birthYear} &ndash; ${deathYear}, ${regionValue})`);
+                    let birthYear = photographer.birth === "unknown" ? "b. unknown" : `b. ${photographer.birth}`;
+                    let birthRegion = photographer.birthRegion === "unknown" ? "unknown" : photographer.birthRegion;
+                    let deathRegion = photographer.deathRegion === "unknown" ? "unknown" : photographer.deathRegion;
+                    if(stillLiving) {
+                        el.html(`${birthYear}, ${birthRegion}`);
+
+                    } else if(birthRegion === deathRegion && birthRegion !== "unknown") {
+                        el.html(`${birthYear} &ndash; ${deathYear}<br>${deathRegion}`);
+                    } else if(birthRegion === "unknown" && deathRegion === "unknown") {
+                        el.html(`${birthYear} &ndash; ${deathYear}`);
+                    } else {
+                        el.html(`${birthYear} (${birthRegion}) &ndash; ${deathYear} (${deathRegion})`);
+                    }
                 }
                 if(handle === "bio") el.html(photographer.bio);
                 if(handle === "events") {
-                    let keyEvents = PHOTOGRAPHER_TIMELINE.filter(pt => pt.name === photographer.romaji);
                     if(photographerEvents.length > 0) {
-            
+                        
+                        const orderedPhotographerEvents = photographerEvents.sort((a,b) => b.year - a.year)
                         el.select("#events--container").selectAll("*").remove();
                         el.select("#events--container").selectAll(".event--row")
-                            .data(keyEvents)
+                            .data(orderedPhotographerEvents)
                             .join("div")
                                 .attr("class", "event--row")
-                                .html(k => `<div class='year'>${k.year}</div><div class='event'>${k.event}</div>`);
+                                .html(k => `<div class='year'>${k.displayYear}</div><div class='event'>${k.event}</div>`);
 
-                        el.style("visibility", "visible");
+                        el.style("display", "block");
                     } else {
-                        el.style("visibility", "hidden");
+                        el.style("display", "none");
                     }
                 }
 
                 if(handle === "bibliography") {
-                    let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === photographer.romaji);
+                    let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === photographer.romaji && p.bibliography !== "");
 
                     if(match.length > 0) {
                         el.select("ul").selectAll("li").remove();
@@ -408,18 +628,35 @@ Promise.all(PROMISES).then(response => {
                             .join("li")
                                 .html(m => m.bibliography);
 
-                        el.style("visibility", "visible");
+                        el.style("display", "block");
                     } else {
-                        el.style("visibility", "hidden");
+                        el.style("display", "none");
                     }
                 }
     
             }
+
+            // Now, make details container visible
+            detailsContainer.style("visibility", "visible");
+            detailsContainer.transition()
+                .duration(transitionDuration)
+                .style("right", "0px");
+
+            // And shift timeline container over
+            d3.select("#chart--container")
+                .transition()
+                .duration(transitionDuration)
+                .style("left", "0px");
+
+            // And make chart controls hidden
+            chartControlsContainer.transition()
+                .duration(transitionDuration)
+                .style("left", "-400px")
     
         });
 
         // Initialize details container with Shima Ryu for demonstration
-        if(photographer.romaji === selectedPhotographer) nameLabel.dispatch("click");
+        // if(photographer.romaji === selectedPhotographer) nameLabel.dispatch("click");
 
 
     });
@@ -472,9 +709,9 @@ Promise.all(PROMISES).then(response => {
 
 
     // Draw the individual photographers tooltip
-    let photographerTooltip = d3.select("#chart--container")
+    let photographerTooltip = d3.select("#chart")
         .append("div")
-        .attr("class", "tooltip");
+        .attr("class", "preview-tooltip");
 
     const tooltipMargin = 10;
 
@@ -578,14 +815,66 @@ Promise.all(PROMISES).then(response => {
                 });
 
 
+            // Now, make timeline container visible
             timelineExpandContainer.style("visibility", "visible");
+            timelineExpandContainer.transition()
+                .duration(transitionDuration)
+                .style("right", "0px");
+
+            // And shift chart container
+            d3.select("#chart--container")
+                .transition()
+                .duration(transitionDuration)
+                .style("left", "0px");
+
+            // And make chart controls hidden
+            chartControlsContainer.transition()
+                .duration(transitionDuration)
+                .style("left", "-400px");
+
+            resetView();
 
         });
     });
 
     d3.select("#timeline-expand--closebutton").on("click", () => {
-        timelineExpandContainer.style("visibility", "hidden");
+        timelineExpandContainer.transition()
+            .duration(transitionDuration)
+            .style("right", "-400px")
+            .on("end", () => timelineExpandContainer.style("visibility", "hidden"));
+
+            // And shift chart container
+            d3.select("#chart--container")
+                .transition()
+                .duration(transitionDuration)
+                .style("left", "400px");
+
+            // And make chart controls hidden
+            chartControlsContainer.transition()
+                .duration(transitionDuration)
+                .style("left", "0px")
+
     });
+
+    d3.select("#details-expand--closebutton").on("click", () => {
+        detailsContainer.transition()
+            .duration(transitionDuration)
+            .style("right", "-400px")
+            .on("end", () => detailsContainer.style("visibility", "hidden"));
+
+        chartControlsContainer.transition()
+            .duration(transitionDuration)
+            .style("left", "0px");
+
+        d3.select("#chart--container")
+            .transition()
+            .duration(transitionDuration)
+            .style("left", "400px");
+
+        resetView();
+
+    });
+
 
     let whichSelectedCategories = [...Object.keys(codeValues)];
 
@@ -615,6 +904,24 @@ Promise.all(PROMISES).then(response => {
 
 
 
+    const resetView = () => {
+        d3.selectAll(".photographer--g")
+            .attr("opacity", 1);
+
+        d3.selectAll("text")
+            .classed("selected", false);
+
+        d3.selectAll(".vitals--g")
+            .attr("opacity", 0);
+
+        selectedPhotographer = null;
+
+        timelinesTooltip.style("visibility", "hidden");
+
+        d3.selectAll(".search-tooltip").remove();
+
+    };
+
     // Update height of SVG canvas for timelines
     timelinesContainer.attr("height", MARGIN.top + (3) * timelineHeight - 20);
 
@@ -638,9 +945,23 @@ Promise.all(PROMISES).then(response => {
 
         if(type === "global") {
         // mouseover event for global timeline 
-            timelinesTooltip.style("visibility", "visible")
-            .style("left", `${TIMESCALE(yearParse(d.year))}px`)
-            .style("top", `${group.datum()['yPosition'] + tooltipMargin}px`);
+
+            let tooltipX = TIMESCALE(yearParse(d.year));
+            let tooltipY = group.datum()['yPosition'] + tooltipMargin;
+
+            if(tooltipX > WIDTH/2) {
+                timelinesTooltip.style("visibility", "visible")
+                    .style("right", `${WIDTH - tooltipX}px`)
+                    .style("left", "unset")
+                    .style("top", `${tooltipY}px`);
+
+            } else {
+                timelinesTooltip.style("visibility", "visible")
+                    .style("left", `${tooltipX}px`)
+                    .style("right", "unset")
+                    .style("top", `${tooltipY}px`);
+
+            }
 
             // If it's a global event, include event coding in tooltip
             if("coding" in d) {
@@ -657,10 +978,10 @@ Promise.all(PROMISES).then(response => {
                 });
                 
 
-                timelinesTooltip.html(`<h3 class='heading--year'>${d.year} ${spans.join("")}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
+                timelinesTooltip.html(`<h3 class='heading--year'>${d.displayYear} ${spans.join("")}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
 
             } else {
-                timelinesTooltip.html(`<h3 class='heading--year'>${d.year}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
+                timelinesTooltip.html(`<h3 class='heading--year'>${d.displayYear}</h3>${d.event}${d.citation ? "<br><br><i>Citation:</i> " + d.citation : ""}`);
 
             }
 
@@ -699,7 +1020,249 @@ Promise.all(PROMISES).then(response => {
         photographerTooltip.style("visibility", "hidden");
         timelinesTooltip.style("visibility", "hidden");
 
+    });
+
+    /* CHART FILTERS */
+
+    const labels = [
+        ["birthRegion", "Birth place"],
+        ["deathRegion", "Death place"],
+        ["bio", "Biography"]
+    ];
+
+    const labelsMap = new Map(labels);
+
+    // Free text search
+    const defaultSearchText = "Type a word or phrase to search";
+    const freeSearchField = d3.select("#search--freetext");
+    const freeSearchClear = d3.select("#search--clear");
+    freeSearchField.property("value", defaultSearchText);
+    freeSearchClear.classed("invisible", true);
+    const searchFacets = ["birthRegion", "deathRegion", "bio"];
+    freeSearchField.on("click", function() {
+        if(freeSearchField.property("value") === defaultSearchText) {
+            freeSearchField.property("value", "");
+        }
+    });
+
+    freeSearchField.on("input", function() {
+        let inputValue = d3.select(this).property("value").toLowerCase();
+        if(inputValue === "") {
+            freeSearchField.property("value", defaultSearchText);
+            d3.selectAll(".search-tooltip").remove();
+            d3.selectAll(".photographer--g").attr("opacity", 1);
+            freeSearchClear.classed("invisible", true);    
+            return;
+        } else if(inputValue.length < 3) {
+            return;
+        }
+
+        freeSearchClear.classed("invisible", false);
+
+        let whatMatches = [];
+        let nonMatches = [];
+        let matches = d3.selectAll(".photographer--g")
+            .filter((d, i, sel) => {
+                let photographerDetail = d.detail;
+                let match = false;
+                searchFacets.forEach(s => {
+                    let facetValue = photographerDetail[s];
+                    if(facetValue.toLowerCase().indexOf(inputValue) >= 0) {
+                        match = true;
+                        whatMatches.push({name: photographerDetail.romaji, facet: s, value: facetValue});
+                    }
+                });
+                if(!match) nonMatches.push(sel[i]);
+                return match;
+            });
+
+            nonMatches.forEach(el => {
+                d3.select(el)
+                    // .transition()
+                    // .duration(100)
+                    .attr("opacity", fadeOpacity);
+            });
+
+            // d3.selectAll(".photographer--g").attr("opacity", 0);
+        
+            d3.selectAll(".search-tooltip").remove();
+
+            let matchRegExp = new RegExp(`(${inputValue})`, "gi")
+            matches.each(function(d, mi) {
+
+                let tY = d.yPosition;
+                d3.select(this)
+                    // .attr("transform", `translate(0, ${tY})`)
+                    .attr("opacity", 1);
+
+                let searchTooltip = d3.select("#chart")
+                    .append("div")
+                    .attr("class", "search-tooltip");
+
+                searchTooltip.on("mouseover", function() { d3.select(this).raise(); });
+
+                /* BUG: When .datum() is used to assign different data to a parent and children elements,
+                using selection.select() propagates the parent data to the child selection.
+                To overcome this, need to use selection.selectAll(), which doesn't propagate data,
+                and then select first element in the selection to retrieve the child datum.
+                */
+                let nameBBox = d3.select(this).select(".photographer-name--g").node().getBBox();
+                let x = (TIMESCALE(d.whichVital) - 10) - nameBBox.width;
+                let y = d.yPosition;
+
+
+                searchTooltip.style("right", `${WIDTH-x}px`)
+                    .style("top", `${tY}px`)
+                    .html(() => {
+                        let m = whatMatches.filter(wm => wm.name === d.detail.romaji);
+                        let formatComponents = [];
+                        m.forEach(mData => {
+                            let formattedValue = mData.value.replace(matchRegExp, "<span class='search-result--match'>$1</span>");
+                            formatComponents.push(`
+                            <div class='search-result--row'>
+                                <b>${labelsMap.get(mData.facet)}</b> ▸  ${formattedValue}
+                            </div>
+                            `);
+                        });
+
+                        return formatComponents.join("");
+                    })
+            });
+
+        // Now scroll into view the first match
+        // const chartContainerNode = d3.select("#chart--container").node();
+        const timelinesContainerNodeHeight = timelinesContainer.node().getBoundingClientRect().height;
+        // chartContainerNode.scrollTop = window.pageYOffset + matches.nodes()[0].getBoundingClientRect().top - timelinesContainerNodeHeight;
+
+        window.scrollTo(0, window.pageYOffset + matches.nodes()[0].getBoundingClientRect().top - timelinesContainerNodeHeight);
+    });
+
+    // Clearing the free search field
+    freeSearchClear.on("click", (e) => {
+        e.stopPropagation();
+        d3.selectAll(".search-tooltip").remove();
+        d3.selectAll(".photographer--g").attr("opacity", 1);
+        freeSearchClear.classed("invisible", true);
+        freeSearchField.property("value", "");
+        freeSearchField.node().focus();
+    });
+
+    // Reset search field is click outside input
+    d3.select("body").on("click", (e) => {
+        e.stopPropagation();
+        if(e.target !== freeSearchField.node() && freeSearchField.property("value") === "") {
+            freeSearchField.property("value", defaultSearchText);
+            freeSearchClear.classed("invisible", true);
+        }
     })
 
+    /* DRAW THE LEGEND */
+    const legendContainer = d3.select("#legend");
+    const legendWidth = legendContainer.node().clientWidth;
+    const legendHeight = legendContainer.node().clientHeight;
+    const legendPadding = 20;
+    const availableDrawingWidth = legendWidth - 2 * legendPadding;
+    const legendSvg = legendContainer.append("svg")
+        .attr("width", legendWidth)
+        .attr("height", legendHeight);
+
+    const legendG = legendSvg.append("g")
+        .attr("transform", `translate(${legendPadding}, ${legendHeight/2})`);
+
+    legendG.append("line")
+        .attr("class", "photographer--axis")
+        .attr("x1", 0)
+        .attr("y1", 0)
+        .attr("x2", availableDrawingWidth)
+        .attr("y2", 0);
+
+
+    legendG.append("line")
+        .attr("class", "photographer--activeyears")
+        .attr("x1", availableDrawingWidth * 0.25)
+        .attr("y1", 0)
+        .attr("x2", availableDrawingWidth * 0.75)
+        .attr("y2", 0);
+
+    legendG.append("circle")
+        .attr("r", 8)
+        .attr("class", "photographer--active")
+        .attr("cx", availableDrawingWidth * 0.25)
+        .attr("cy", 0);
+
+    legendG.append("circle")
+        .attr("class", "marker--contrast")
+        .attr("cx", availableDrawingWidth * 0.25)
+        .attr("cy", 0)
+        .attr("r", 2);
+
+    legendG.append("circle")
+        .attr("r", 8)
+        .attr("class", "photographer--active")
+        .attr("cx", availableDrawingWidth * 0.75)
+        .attr("cy", 0);
+
+    legendG.append("circle")
+        .attr("class", "marker--contrast")
+        .attr("cx", availableDrawingWidth * 0.75)
+        .attr("cy", 0)
+        .attr("r", 2);
+
+
+    legendG.append("path")
+        .attr("class", "photographer--birth")
+        .attr("d", d3.symbol(d3.symbolTriangle).size(110))
+        .attr("transform", `rotate(90)`);
+
+    legendG.append("circle")
+        .attr("class", "marker--contrast")
+        .attr("cx", 0)
+        .attr("cy", 0)
+        .attr("r", 2);
+
+
+    legendG.append("rect")
+        .attr("class", "photographer--death")
+        .attr("x", availableDrawingWidth - boxMarkerWidth / 2)
+        .attr("y", -boxMarkerWidth / 2)
+        .attr("width", boxMarkerWidth)
+        .attr("height", boxMarkerWidth);
+
+    legendG.append("circle")
+        .attr("class", "marker--contrast")
+        .attr("cx", availableDrawingWidth)
+        .attr("cy", 0)
+        .attr("r", 2);
+
+    // Now, labels
+
+    const legendLabelMargin = 20;
+    legendG.append("text")
+        .attr("class", "legend--label")
+        // .attr("transform", `translate(0,0)rotate(-30)translate(0,0)`)
+        .attr("x", 0)
+        .attr("y", -legendLabelMargin)
+        .text("Birth");
+
+    legendG.append("text")
+        .attr("class", "legend--label")
+        // .attr("transform", `translate(${availableDrawingWidth*0.25},0)rotate(-30)translate(${-availableDrawingWidth*0.25},0)`)
+        .attr("x", availableDrawingWidth*0.25)
+        .attr("y", -legendLabelMargin)
+        .text("Active");
+
+    legendG.append("text")
+        .attr("class", "legend--label")
+        // .attr("transform", `translate(${availableDrawingWidth*0.75},0)rotate(-30)translate(${-availableDrawingWidth*0.75},0)`)
+        .attr("x", availableDrawingWidth*0.75)
+        .attr("y", -legendLabelMargin)
+        .text("Inactive");
+
+    legendG.append("text")
+        .attr("class", "legend--label")
+        // .attr("transform", `translate(${availableDrawingWidth},0)rotate(-30)translate(${-availableDrawingWidth},0)`)
+        .attr("x", availableDrawingWidth)
+        .attr("y", -legendLabelMargin)
+        .text("Death");
 
 });
