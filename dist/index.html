@@ -5,40 +5,74 @@
     </head>
     <body>
         <div id="container">
+            <div id="chart--controls">
+                <h1>Search Photographers</h1>
+                <p>Search photographers by free text by typing in the field below</p>
+                <div id="search--container">
+                    <input type="text" id="search--freetext" autocomplete="off">
+                    <div id="search--clear">×</div>
+                </div>
+                <!-- <p>Find a specific photographer</p>
+                <div id="search--container">
+                    <input type="text" id="search--by-photographer-name" autocomplete="off">
+                    <div id="search--clear">×</div>
+                </div> -->
+
+                <h2>Legend</h2>
+                <div id="legend">
+
+                </div>
+                <div id="footer">
+                    <div id="btc-logo-container">
+                        <img src="./assets/BtC-Logo-2.png">
+                    </div>
+                    <div id="btc-info">
+                        <p><b>Behind the Camera</b> is an open-source website that creates new critical directions on the history of photography, feminist art history, and the history of modern Japan. To learn more, visit the <a target="_blank" href="https://behindthecamerajapan.arts.ubc.ca/">Behind the Camera website</a>.</p>
+                    </div>
+                </div>
+            </div>
             <div id="chart--container">
                 <div id="timelines"></div>
                 <div id="chart"></div>
             </div>
-            <div id="details--container">
-                <div id="details">
+        </div>
+        <div id="details--container">
+            <div id="details">
+                <div id="details--header-container">
+                    <div id="details-expand--closebutton">Close this panel →</div>
                     <h1 id="details--romaji"></h1>
-                    <h2 id="details--kanji"></h2>
-                    <h3 id="details--region"></h3>
-                    <h3 id="details--lifetime"></h3>
-                    <h3 class="subsection--header">Biography</h3>
-                    <p id="details--bio"></p>
-                    <section id="details--events">
-                        <h3 class="subsection--header">Key Events</h3>
-                        <div id="events--container"></div>
-                    </section>
-                    <section id="details--biblio">
-                        <h3 class="subsection--header">Selected Bibliography</h3>
-                        <ul></ul>
-                    </section>    
+                    <h2 id="details--kanji"></h2>    
                 </div>
-            </div>    
-            <div id="timeline-expand--container">
-                <div id="timeline-expand--closebutton">Close this panel →</div>
-                <h2 id="timeline-expand--header"></h2>
-                <div id="timeline-expand--filters">
-                    <input type="checkbox" name="technology" value="T" checked autocomplete="off"><label for="technology"><span class='event--label event--technology'>Technology</span></label>
-                    <input type="checkbox" name="professional" value="P" checked autocomplete="off"><label for="professional"><span class='event--label event--professional'>Professional</span></label>
-                    <input type="checkbox" name="institutional" value="I" checked autocomplete="off"><label for="institutional"><span class='event--label event--institutional'>Institutional</span></label>
-                    <input type="checkbox" name="exhibition" value="E/P" checked autocomplete="off"><label for="exhibition"><span class='event--label event--exhibition'>Exhibitions/Publications</span></label>
-
-                </div>
-                <div id="timeline-expand--events"></div>
+                <h3 id="details--region"></h3>
+                <h3 id="details--lifetime"></h3>
+                <h3 class="subsection--header">Biography</h3>
+                <p id="details--bio"></p>
+                <section id="details--events">
+                    <h3 class="subsection--header">Key Events</h3>
+                    <div id="events--container"></div>
+                </section>
+                <section id="details--biblio">
+                    <h3 class="subsection--header">Selected Bibliography</h3>
+                    <ul></ul>
+                </section>    
             </div>
+        </div>    
+        <div id="timeline-expand--container">
+            <div id="timeline-expand--closebutton">Close this panel →</div>
+            <h2 id="timeline-expand--header"></h2>
+            <p id="filter--instructions">Click the buttons below to filter events by category</p>
+            <div id="timeline-expand--filters">
+                <span class='event--label event--technology' data-name="technology" data-value="T">Technology</span>
+                <span class='event--label event--professional' data-name="professional" data-value="P">Professional</span>
+                <span class='event--label event--institutional' data-name="institutional" data-value="I">Institutional</span>
+                <span class='event--label event--exhibition' data-name="exhibition" data-value="E/P">Exhibitions/Publications</span>
+
+                <!-- <input type="checkbox" name="technology" value="T" checked autocomplete="off"><label for="technology"><span class='event--label event--technology'>Technology</span></label>
+                <input type="checkbox" name="professional" value="P" checked autocomplete="off"><label for="professional"><span class='event--label event--professional'>Professional</span></label>
+                <input type="checkbox" name="institutional" value="I" checked autocomplete="off"><label for="institutional"><span class='event--label event--institutional'>Institutional</span></label>
+                <input type="checkbox" name="exhibition" value="E/P" checked autocomplete="off"><label for="exhibition"><span class='event--label event--exhibition'>Exhibitions/Publications</span></label> -->
+            </div>
+            <div id="timeline-expand--events"></div>
         </div>
         <script src="./main.js"></script>
     </body>

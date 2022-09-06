@@ -1,23 +1,39 @@
 require("./style.css");
 import * as d3 from "d3";
 import { transition } from "d3";
+import { sortPhotographerEvents } from "./modules/Utils";
 
 const clean = function(d) {
     return d.trim();
 }
 
+const codeValues = {
+    "T": {label: "Technology", className: "event--technology"},
+    "P": {label: "Professional", className: "event--professional"},
+    "I": {label: "Institutional", className: "event--institutional"},
+    // "P": {label: "Professional (agencies, professional associations)", className: "event--professional"},
+    // "I": {label: "Institutional (schools and museums)", className: "event--institutional"},
+    "E/P": {label: "Exhibitions/Publications", className: "event--exhibition"}
+};
+
+const folderName = "2022-09-05";
+const filePrefix = "2022-09-05";
 
 const PROMISES = [
-    d3.csv("./data/2022-07-23/2022-07-23_globalPhotoHistoryTimeline.csv", d => {
+    d3.csv(`./data/${folderName}/${filePrefix}_globalPhotoHistoryTimeline.csv`, d => {
         if(d['Year'] === "" || d['Event'] === "") return;
+        let eventCodes = [];
+        for(let c in codeValues) {
+            if(d["Coding"].includes(c)) eventCodes.push(c);
+        }
         return {
             year: d['Year'] === "1826/7" ? 1826 : +d['Year'], // TEMPORARY PATCH FOR DATA
-            displayYear: d['Year'],
+            displayYear: d['Display Year (If different)'],
             event: d['Event'],
-            coding: d['Coding']
+            coding: eventCodes
         }
     }),
-    d3.csv("./data/2022-07-23/2022-07-23_japanPhotoHistoryTimeline.csv", d => {
+    d3.csv(`./data/${folderName}/${filePrefix}_japanPhotoHistoryTimeline.csv`, d => {
         if(d['YEAR'] === "" || d['Event'] === "") return;
         return {
             year: +d['Year'],
@@ -26,15 +42,16 @@ const PROMISES = [
             citation: d['Citation']
         }
     }),
-    d3.csv("./data/2022-07-23/2022-07-23_selectedBibliography.csv", d => {
+    d3.csv(`./data/${folderName}/${filePrefix}_selectedBibliography.csv`, d => {
         if(d['Name'] === "") return;
         return {
             name: clean(d['Name']),
-            bibliography: d['Selected Bibliography']
+            bibliography: d['Selected Bibliography'],
+            isPrimarySource: d['Primary'].toLowerCase() === "yes" ? true : false
         }
 
     }),
-    d3.csv("./data/2022-07-23/2022-07-23_individualBioTimeline.csv", d => {
+    d3.csv(`./data/${folderName}/${filePrefix}_individualBioTimeline.csv`, d => {
         if(d['Name'] === "") return;
         if(d['Event'] === "") return;
         return {
@@ -46,7 +63,7 @@ const PROMISES = [
             caption: d['Image caption']
         }
     }),
-    d3.csv("./data/2022-07-23/2022-07-23_womenPhotographersTimeline.csv", d => {
+    d3.csv(`./data/${folderName}/${filePrefix}_womenPhotographersTimeline.csv`, d => {
         if(d['Name - romaji'] === "") return;
 
         let r = {
@@ -98,7 +115,19 @@ const PROMISES = [
 
         return r;
 
-    })
+    }),
+    d3.csv(`./data/${folderName}/${filePrefix}_photographerHyperlinks.csv`, d => {
+        if(d['Photographer Name'] === "") return;
+        return {
+            name: clean(d['Photographer Name']),
+            url: d['URL of hyperlink'],
+            linkTextEnglish: d['Text of hyperlink - English'],
+            linkTextJapanese: d['Text of hyperlink - Japanese'],
+            linkType: d['Type of hyperlink'],
+            isBtcResource: d['Type of hyperlink'] === "Behind the Camera" ? true : false
+        }
+
+    }),
 ];
 
 Promise.all(PROMISES).then(response => {
@@ -115,15 +144,18 @@ Promise.all(PROMISES).then(response => {
             let aValue = a.birth === "unknown" ? a.active : a.birth;
             let bValue = b.birth === "unknown" ? b.active : b.birth;
             return yearParse(aValue) - yearParse(bValue);
-        })
+        }),
+        PHOTOGRAPHER_HYPERLINKS = response[5];
 
-        console.log(JAPAN_TIMELINE)
 
     const WIDTH = document.querySelector("#chart").clientWidth;
     const MARGIN = {top: 40, left: 50, right: 50, bottom: 150};
     const transitionDuration = 250;
-    const fadeOpacity = 0.4;
+    const fadeOpacity = 0.3;
     const boxMarkerWidth = 12;
+    // The width of the right-side timeline and individual photographer detail panel, in pixels
+    const rightPanelWidth = 400;
+
 
 
     let svg = d3.select("#chart")
@@ -166,7 +198,9 @@ Promise.all(PROMISES).then(response => {
         // region: d3.select("#details--region"),
         lifetime: d3.select("#details--lifetime"),
         bio: d3.select("#details--bio"),
+        btcResources: d3.select("#details--btc-resources"),
         events: d3.select("#details--events"),
+        dataAttribution: d3.select("#details--data-attribution"),
         bibliography: d3.select("#details--biblio")
     };
 
@@ -218,8 +252,6 @@ Promise.all(PROMISES).then(response => {
             deathYear = photographer.death === "unknown" ? "d. unknown" : `d. ${photographer.death}`;
             stillLiving = false;
         }
-
-        console.log(photographer.romaji, stillLiving);
 
         let g = plottingArea.append("g")
             .attr("class", "photographer--g")
@@ -474,13 +506,15 @@ Promise.all(PROMISES).then(response => {
         nameLabelRect.on("mouseover", (e,d) => {
 
 
+            if(freeSearchActive) return;
+
             timelinesTooltip.style("visibility", "hidden");
 
-            if(photographer.romaji === selectedPhotographer) return;
+            if(d.detail.romaji === selectedPhotographer) return;
 
-            let thisGroup = d3.selectAll(".photographer--g").filter(p => p.detail.romaji === photographer.romaji);
+            let thisGroup = d3.selectAll(".photographer--g").filter(p => p.detail.romaji === d.detail.romaji);
 
-            let regex = new RegExp(photographer.romaji, 'i');
+            let regex = new RegExp(d.detail.romaji, 'i');
 
             nameLabel.selectAll("text")
                 .classed("selected", true);
@@ -507,9 +541,9 @@ Promise.all(PROMISES).then(response => {
                 .style("right", `${WIDTH - x + nameLabel.node().getBBox().width + 10}px`)
                 .style("left", "unset")
                 .html(() => {
-                    let previewBio = photographer.bioPreview;
-                    let previewBioWithBoldName = previewBio.replace(regex, `<b>${photographer.romaji}</b>`);
-                    return `<p>${previewBioWithBoldName} <span class='see-more'>Click name to read more →</p>`;
+                    let previewBio = d.detail.bioPreview;
+                    let previewBioWithBoldName = previewBio.replace(regex, `<b>${d.detail.romaji}</b>`);
+                    return `<p>${previewBioWithBoldName} <span class='see-more'>Click name to read more→</p>`;
                 });
 
             // }
@@ -525,7 +559,7 @@ Promise.all(PROMISES).then(response => {
                 .duration(transitionDuration)
                 .attr("opacity", fadeOpacity);
 
-            d3.selectAll(".photographer--g").filter(p => p.detail.romaji === photographer.romaji)
+            d3.selectAll(".photographer--g").filter(p => p.detail.romaji === d.detail.romaji)
                 .interrupt()
                 .transition()
                 .duration(transitionDuration)
@@ -538,9 +572,10 @@ Promise.all(PROMISES).then(response => {
                 .duration(transitionDuration)
                 .attr("opacity", 1);
 
-        }).on("mouseout", () => {
+        }).on("mouseout", (e,d) => {
 
-            if(photographer.romaji === selectedPhotographer) return;
+            if(freeSearchActive) return;
+            if(d.detail.romaji === selectedPhotographer) return;
 
             nameLabel.selectAll("text")
                 .classed("selected", false);
@@ -561,19 +596,28 @@ Promise.all(PROMISES).then(response => {
 
         });
 
-        nameLabelRect.on("click", () => {
 
+        nameLabelRect.on("click", (e,d) => {
+
+            // Reset the general view
+            resetView();
 
             // If timeline is opened, close it
-            timelineExpandContainer.style("visibility", "hidden");
+            // timelineExpandContainer.style("visibility", "hidden");
+            timelineExpandContainer.style("display", "none");
             timelinesTooltip.style("visibility", "hidden");
             d3.selectAll(".search-tooltip").remove();
 
+            // Reset scroll position of container to top
+            detailsContainer.node().scrollTop = 0;
 
-            selectedPhotographer = photographer.romaji;
+            // Reset active free search
+            freeSearchActive = false;
+
+            selectedPhotographer = d.detail.romaji;
             
-            // svg.selectAll(".photographer--name")
-            //     .classed("selected", false);
+            svg.selectAll(".photographer-name--g text")
+                .classed("selected", false);
 
             nameLabel.selectAll("text")
                 .classed("selected", true);
@@ -582,35 +626,100 @@ Promise.all(PROMISES).then(response => {
 
                 let el = details[handle];
 
-                if(handle === "romaji") el.html(photographer.romaji);
-                if(handle === "kanji") el.html(photographer.kanji);
+                if(handle === "romaji") el.html(d.detail.romaji);
+                if(handle === "kanji") el.html(d.detail.kanji);
                 // if(handle === "region" && photographer.region) el.html(photographer.region);
                 if(handle === "lifetime") {
-                    let birthYear = photographer.birth === "unknown" ? "b. unknown" : `b. ${photographer.birth}`;
-                    let birthRegion = photographer.birthRegion === "unknown" ? "unknown" : photographer.birthRegion;
-                    let deathRegion = photographer.deathRegion === "unknown" ? "unknown" : photographer.deathRegion;
+                    let birthYear = d.detail.birth === "unknown" ? "b. unknown" : `b. ${d.detail.birth}`;
+                    let birthRegion = d.detail.birthRegion === "unknown" ? "unknown" : d.detail.birthRegion;
+                    let deathRegion = d.detail.deathRegion === "unknown" ? "unknown" : d.detail.deathRegion;
                     if(stillLiving) {
-                        el.html(`${birthYear}, ${birthRegion}`);
+                        let birthRegionDisplayValue;
+                        if(birthRegion === "unknown" || birthRegion === "") {
+                            birthRegionDisplayValue = "";
+                        } else {
+                            birthRegionDisplayValue = `(${birthRegion})`;
+                        }
 
-                    } else if(birthRegion === deathRegion && birthRegion !== "unknown") {
-                        el.html(`${birthYear} &ndash; ${deathYear}<br>${deathRegion}`);
-                    } else if(birthRegion === "unknown" && deathRegion === "unknown") {
-                        el.html(`${birthYear} &ndash; ${deathYear}`);
+                        el.html([birthYear, birthRegionDisplayValue].join(" "));
+
                     } else {
-                        el.html(`${birthYear} (${birthRegion}) &ndash; ${deathYear} (${deathRegion})`);
+                        let birthRegionDisplayValue, deathRegionDisplayValue;
+                        if(birthRegion === "unknown" || birthRegion === "") {
+                            birthRegionDisplayValue = "";
+                        } else {
+                            birthRegionDisplayValue = `(${birthRegion})`;
+                        }
+
+                        if(deathRegion === "unknown" || deathRegion === "") {
+                            deathRegionDisplayValue = "";
+                        } else {
+                            deathRegionDisplayValue = `(${deathRegion})`;
+                        }
+
+                        const displayStringContents = [birthYear, birthRegionDisplayValue, "&ndash;", deathYear, deathRegionDisplayValue];
+                        el.html(displayStringContents.join(" "));
                     }
+                    // } else if(birthRegion === deathRegion && birthRegion !== "unknown") {
+                    //     el.html(`${birthYear} &ndash; ${deathYear}<br>${deathRegion}`);
+                    // } else if(birthRegion === "unknown" && deathRegion === "unknown") {
+                    //     el.html(`${birthYear} &ndash; ${deathYear}`);
+                    // } else if()
+                    // } else {
+                    //     el.html(`${birthYear} (${birthRegion}) &ndash; ${deathYear} (${deathRegion})`);
+                    // }
                 }
-                if(handle === "bio") el.html(photographer.bio);
+                if(handle === "bio") el.html(d.detail.bio);
                 if(handle === "events") {
-                    if(photographerEvents.length > 0) {
-                        
-                        const orderedPhotographerEvents = photographerEvents.sort((a,b) => b.year - a.year)
+                
+                    let orderedPhotographerEvents = sortPhotographerEvents(photographer, photographerEvents);
+
+                    if(orderedPhotographerEvents.length > 0) {
+                        let photographerActive = d.detail.active;
+                        let photographerInactive = d.detail.inactive;
+
                         el.select("#events--container").selectAll("*").remove();
                         el.select("#events--container").selectAll(".event--row")
                             .data(orderedPhotographerEvents)
                             .join("div")
                                 .attr("class", "event--row")
-                                .html(k => `<div class='year'>${k.displayYear}</div><div class='event'>${k.event}</div>`);
+                                .classed("vital-row", k => k.eventType === "vital" ? true : false)
+                                // Note: Rows that are in between active and inactive years are given class "active-row";
+                                // however, "inactive" year may be undefined or "unknown", but still want the events after
+                                // the active start year to have the same special .active-row class, so the following
+                                // inline if statement checks for these conditions
+                                .classed("active-row", k => k.eventType !== "vital" && (k.year >= photographerActive && k.year <= photographerInactive) || (photographerActive && (!photographerInactive || photographerInactive === "unknown") && k.year >= photographerActive) ? true : false)
+                                .classed("special-row", k => k.eventClass === "active" || k.eventClass === "inactive" ? true : false)
+                                .html(k => {
+
+                                    if(k.eventType === "vital") {
+                                        return `<div class='year'>${k.displayYear} ${k.event}</div>`;
+                                    }
+                                    /*
+                                    For some timeline events, there are multiple events listed for the same year;
+                                    these are separated by a semicolon (;), so here we will split those into separate rows
+                                    */
+
+                                    const splitEvents = k.event.split("; ");
+                                    if(splitEvents.length == 1) {
+                                        return `<div class='year'>${k.displayYear}</div><div class='event'><ul><li>${k.event}</li></ul></div>`;
+
+                                    } else {
+                                        let htmlContents = []
+                                        splitEvents.forEach((s) => {
+                                            // Make sure that first letter of each split event description is capitalized
+                                            const eventString = s.trim();
+                                            const formattedEventString = eventString.charAt(0).toUpperCase() + eventString.slice(1);
+                                            htmlContents.push(`<li>${formattedEventString}</li>`);
+
+                                        });
+
+                                        return `<div class='year'>${k.displayYear}</div><div class='event'><ul>${htmlContents.join("")}</ul></div>`;
+
+                                    }
+
+
+                                });
 
                         el.style("display", "block");
                     } else {
@@ -618,8 +727,24 @@ Promise.all(PROMISES).then(response => {
                     }
                 }
 
+                if(handle === "dataAttribution") {
+                    let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === d.detail.romaji && p.isPrimarySource);
+
+                    if(match.length > 0) {
+                        el.select("ul").selectAll("li").remove();
+                        el.select("ul").selectAll("li")
+                            .data(match)
+                            .join("li")
+                                .html(m => m.bibliography);
+
+                        el.style("display", "block");
+                    } else {
+                        el.style("display", "none");
+                    }
+
+                }
                 if(handle === "bibliography") {
-                    let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === photographer.romaji && p.bibliography !== "");
+                    let match = PHOTOGRAPHER_BIBLIO.filter(p => p.name === d.detail.romaji && p.bibliography !== "");
 
                     if(match.length > 0) {
                         el.select("ul").selectAll("li").remove();
@@ -633,11 +758,29 @@ Promise.all(PROMISES).then(response => {
                         el.style("display", "none");
                     }
                 }
+                if(handle === "btcResources") {
+                    let match = PHOTOGRAPHER_HYPERLINKS.filter(p => p.name === d.detail.romaji && p.isBtcResource);
+
+                    if(match.length > 0) {
+                        el.select("ul").selectAll("li").remove();
+                        el.select("ul").selectAll("li")
+                            .data(match)
+                            .join("li")
+                                .html(m => `<a target='_blank' href='${m.url}'>${m.linkTextEnglish} ↗</a>`);
+
+                        el.style("display", "block");
+                    } else {
+                        el.style("display", "none");
+                    }
+
+                }
+
     
             }
 
             // Now, make details container visible
-            detailsContainer.style("visibility", "visible");
+            // detailsContainer.style("visibility", "visible");
+            detailsContainer.style("display", "block");
             detailsContainer.transition()
                 .duration(transitionDuration)
                 .style("right", "0px");
@@ -646,12 +789,12 @@ Promise.all(PROMISES).then(response => {
             d3.select("#chart--container")
                 .transition()
                 .duration(transitionDuration)
-                .style("left", "0px");
+                .style("margin-left", "0px");
 
             // And make chart controls hidden
             chartControlsContainer.transition()
                 .duration(transitionDuration)
-                .style("left", "-400px")
+                .style("margin-left", `-${rightPanelWidth}px`)
     
         });
 
@@ -682,15 +825,6 @@ Promise.all(PROMISES).then(response => {
 
 
     /* DRAWING TIMELINES */
-
-    let codeValues = {
-        "T": {label: "Technology", className: "event--technology"},
-        "P": {label: "Professional", className: "event--professional"},
-        "I": {label: "Institutional", className: "event--institutional"},
-        // "P": {label: "Professional (agencies, professional associations)", className: "event--professional"},
-        // "I": {label: "Institutional (schools and museums)", className: "event--institutional"},
-        "E/P": {label: "Exhibitions/Publications", className: "event--exhibition"}
-    };
 
     // Draw the main timeline axis
     let timelinesContainer = d3.select("#timelines")
@@ -774,11 +908,16 @@ Promise.all(PROMISES).then(response => {
 
         expandLabel.on("click", () => {
 
+            // Reset scroll position of container to top
+            timelineExpandContainer.node().scrollTop = 0;
+
 
             if(events === GLOBAL_TIMELINE) {
+                d3.select("#filter--instructions").style("display", "block");
                 d3.select("#timeline-expand--filters").style("display", "block");
             } else {
                 d3.select("#timeline-expand--filters").style("display", "none");
+                d3.select("#filter--instructions").style("display", "none");
             }
 
             timelineExpandContainer.select("#timeline-expand--events").selectAll("*").remove();
@@ -793,30 +932,27 @@ Promise.all(PROMISES).then(response => {
                 .html(k => {
 
                     if(events === GLOBAL_TIMELINE) {
-                        let eventCodes = [];
+                        let eventCodes = k.coding;
 
-                        for(let c in codeValues) {
-                            if(k["coding"].includes(c)) eventCodes.push(c);
-                        }
-        
                         let spans = [];
                         eventCodes.forEach(ec => {
                             let v = codeValues[ec];
                             spans.push(`<span class='event--label ${v.className}'>${v.label}</span>`);
                         });
 
-                        return `<div class='year'>${k.year}</div><div class='event'>${spans.join("")}<br><br>${k.event}</div>`;
+                        return `<div class='year'>${k.year} ${spans.join("")}</div><div class='event'><ul><li>${k.event}</li></ul></div>`;
         
                     } else {
 
-                        return `<div class='year'>${k.year}</div><div class='event'>${k.event}</div>`
+                        return `<div class='year'>${k.year}</div><div class='event'><ul><li>${k.event}</li></ul></div>`
 
                     }
                 });
 
 
             // Now, make timeline container visible
-            timelineExpandContainer.style("visibility", "visible");
+            // timelineExpandContainer.style("visibility", "visible");
+            timelineExpandContainer.style("display", "block");
             timelineExpandContainer.transition()
                 .duration(transitionDuration)
                 .style("right", "0px");
@@ -825,12 +961,12 @@ Promise.all(PROMISES).then(response => {
             d3.select("#chart--container")
                 .transition()
                 .duration(transitionDuration)
-                .style("left", "0px");
+                .style("margin-left", "0px");
 
             // And make chart controls hidden
             chartControlsContainer.transition()
                 .duration(transitionDuration)
-                .style("left", "-400px");
+                .style("margin-left", `-${rightPanelWidth}px`);
 
             resetView();
 
@@ -840,66 +976,74 @@ Promise.all(PROMISES).then(response => {
     d3.select("#timeline-expand--closebutton").on("click", () => {
         timelineExpandContainer.transition()
             .duration(transitionDuration)
-            .style("right", "-400px")
-            .on("end", () => timelineExpandContainer.style("visibility", "hidden"));
+            .style("right", `-${rightPanelWidth}px`)
+            // .on("end", () => timelineExpandContainer.style("visibility", "hidden"));
+            .on("end", () => timelineExpandContainer.style("display", "none"));
 
             // And shift chart container
             d3.select("#chart--container")
                 .transition()
                 .duration(transitionDuration)
-                .style("left", "400px");
+                .style("margin-left", "0px");
 
             // And make chart controls hidden
             chartControlsContainer.transition()
                 .duration(transitionDuration)
-                .style("left", "0px")
+                .style("margin-left", "0px")
 
     });
 
     d3.select("#details-expand--closebutton").on("click", () => {
         detailsContainer.transition()
             .duration(transitionDuration)
-            .style("right", "-400px")
-            .on("end", () => detailsContainer.style("visibility", "hidden"));
+            .style("right", `-${rightPanelWidth}px`)
+            // .on("end", () => detailsContainer.style("visibility", "hidden"));
+            .on("end", () => detailsContainer.style("display", "none"));
 
         chartControlsContainer.transition()
             .duration(transitionDuration)
-            .style("left", "0px");
+            .style("margin-left", "0px");
 
         d3.select("#chart--container")
             .transition()
             .duration(transitionDuration)
-            .style("left", "400px");
+            .style("margin-left", "0px");
 
         resetView();
 
     });
 
+    let whichSelectedCategories = new Map();
+    Object.keys(codeValues).forEach(k => whichSelectedCategories.set(k, true));
 
-    let whichSelectedCategories = [...Object.keys(codeValues)];
+    d3.select("#timeline-expand--filters").selectAll(".event--label").on("click", function() {
 
-    d3.select("#timeline-expand--filters").selectAll("input").on("change", function() {
 
-        // Get all currently-checked categories
-        whichSelectedCategories = d3.select("#timeline-expand--filters").selectAll("input:checked").nodes().map(n => n.value);
+        let dataset = d3.select(this).node().dataset;
+
+
+        let value = dataset.value;
+        if(whichSelectedCategories.get(value) == true) {
+            whichSelectedCategories.set(value, false);
+            d3.select(this).classed("deselected", true);
+        } else {
+            whichSelectedCategories.set(value, true);
+            d3.select(this).classed("deselected", false);
+        }
 
         
         timelineExpandContainer.selectAll(".event--row")
-            .classed("event--hidden", k => !whichSelectedCategories.some(c => k.coding.includes(c)));
+            .classed("event--hidden", k => {
+                let display = false;
+                k.coding.forEach(kc => {
+                    if(whichSelectedCategories.get(kc) == true) display = true;
+                });
 
-        // let value = d3.select(this).property("value");
-        // let isChecked = d3.select(this).property("checked");
+                // If the event has at least 1 of any currently-selected categories,
+                // then it should be displayed, and should NOT get the event--hidden class
+                return !display;
+            });
 
-        // let filteredEvents = timelineExpandContainer.selectAll(".event--row")
-        //     .filter(e => e.coding.includes(value));
-
-
-        // if(isChecked) {
-        //     filteredEvents.classed("event--hidden", false);
-        // } else {
-
-        //     filteredEvents.classed("event--hidden", true);
-        // }
     });
 
 
@@ -919,6 +1063,15 @@ Promise.all(PROMISES).then(response => {
         timelinesTooltip.style("visibility", "hidden");
 
         d3.selectAll(".search-tooltip").remove();
+
+        // Free search reset
+        freeSearchField.property("value", defaultSearchText);
+        freeSearchClear.classed("invisible", true);
+        freeSearchActive = false;
+
+        // Timeline and details container scroll to top
+        detailsContainer.node().scrollTop = 0;
+        timelineExpandContainer.node().scrollTop = 0;
 
     };
 
@@ -1036,10 +1189,11 @@ Promise.all(PROMISES).then(response => {
     const defaultSearchText = "Type a word or phrase to search";
     const freeSearchField = d3.select("#search--freetext");
     const freeSearchClear = d3.select("#search--clear");
+    let freeSearchActive = false;
     freeSearchField.property("value", defaultSearchText);
     freeSearchClear.classed("invisible", true);
     const searchFacets = ["birthRegion", "deathRegion", "bio"];
-    freeSearchField.on("click", function() {
+    freeSearchField.on("mousedown", function() {
         if(freeSearchField.property("value") === defaultSearchText) {
             freeSearchField.property("value", "");
         }
@@ -1048,16 +1202,18 @@ Promise.all(PROMISES).then(response => {
     freeSearchField.on("input", function() {
         let inputValue = d3.select(this).property("value").toLowerCase();
         if(inputValue === "") {
-            freeSearchField.property("value", defaultSearchText);
             d3.selectAll(".search-tooltip").remove();
             d3.selectAll(".photographer--g").attr("opacity", 1);
             freeSearchClear.classed("invisible", true);    
+            freeSearchActive = false;
             return;
         } else if(inputValue.length < 3) {
+            freeSearchActive = false;
             return;
         }
 
         freeSearchClear.classed("invisible", false);
+        freeSearchActive = true;
 
         let whatMatches = [];
         let nonMatches = [];
@@ -1118,6 +1274,10 @@ Promise.all(PROMISES).then(response => {
                         let formatComponents = [];
                         m.forEach(mData => {
                             let formattedValue = mData.value.replace(matchRegExp, "<span class='search-result--match'>$1</span>");
+                            if(mData.facet === "bio") {
+                                // For bio matches, don't display whole bio search match -- just the term that matched
+                                formattedValue = `<span class='search-result--match'>${mData.value.match(matchRegExp)}</span>`
+                            }
                             formatComponents.push(`
                             <div class='search-result--row'>
                                 <b>${labelsMap.get(mData.facet)}</b> ▸  ${formattedValue}
