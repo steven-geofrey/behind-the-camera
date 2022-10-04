@@ -252,7 +252,7 @@ footer {
 #details-expand--closebutton {
     width: 100%;
     margin: 0px 0px 20px 0px;
-    padding: 15px 0px 0px 0px;
+    padding: 15px 0px 15px 0px;
     color: #446688;
     font-size: 10pt;
     text-align: right;
@@ -266,6 +266,13 @@ footer {
 
 #timeline-expand--events {
     margin-top: 20px;
+}
+
+#timeline-expand--closebutton {
+	position: sticky;
+	top: 0;
+	z-index: 1000;
+	background-color: #F9F9F9;
 }
 
 
@@ -767,6 +774,7 @@ a:hover {
 
 .selected {
     font-weight: bold;
+    fill: var(--primary-color);
 }
 
 .special-highlight-line {
