@@ -1,5 +1,6 @@
-import * as d3 from "d3";
-
+// The following script sorts events for individual photographers
+// in the details panel, so that active and inactive years are
+// correctly positioned in the order of events
 export const sortPhotographerEvents = (photographer, photographerEvents) => {
     if(photographerEvents.length == 0) return [];
     let modifiedPhotographerEvents = [...photographerEvents];
@@ -20,38 +21,13 @@ export const sortPhotographerEvents = (photographer, photographerEvents) => {
     let sortedPhotographerEvents = modifiedPhotographerEvents.sort((a,b) => a.year - b.year);
 
     return sortedPhotographerEvents;
-    // const vitalsToCheck = ["birth", "active", "inactive", "death"];
-    let hasVitals = vitalsToCheck.filter(v => !photographer[v] || photographer[v] === "unknown" ? false : true);
-    let intervals = [];
-
-    for(vi = 0; vi < hasVitals.length - 1; vi++) {
-        let vitalStart = hasVitals[vi];
-        let vitalStartYear = photographer[vitalStart];
-        let vitalEnd = hasVitals[vi+1];
-        let vitalEndYear = photographer[vitalEnd];
-        let filteredEvents = sortedPhotographerEvents.filter(s => s.year >= vitalStartYear && s.year < vitalEndYear);
-
-        intervals.push({vitalStart, vitalStartYear, vitalEnd, vitalEndYear, filteredEvents});
-
-    }
-
-    let orderedPhotographerEvents = [];
-    intervals.forEach(interval => {
-        if(interval.vitalStart === "birth") {
-            orderedPhotographerEvents.push({year: photographer[vitalStart], displayYear: photographer[vitalStart], eventClass: vitalStart, event: vitalStart, eventType: "vital"});
-
-        }
-    });
-
-    hasVitals.forEach(v => {
-        let interval = intervals.filter(i => i.vitalStart === v);
-
-        if(v === "birth") {
-            orderedPhotographerEvents.push({year: photographer[v], displayYear: photographer[v], eventClass: v, event: v, eventType: "vital"});
-            orderedPhotographerEvents.push([...interval.filteredEvents]);
-        } else if(v === "active") {
-
-        }
-    })
 
 }
+
+// Code values for global photography event categories
+export const codeValues = {
+    "T": {label: "Technology", className: "event--technology"},
+    "P": {label: "Professional", className: "event--professional"},
+    "I": {label: "Institutional", className: "event--institutional"},
+    "E/P": {label: "Exhibitions/Publications", className: "event--exhibition"}
+};

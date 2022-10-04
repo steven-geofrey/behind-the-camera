@@ -2,19 +2,27 @@
 <html>
     <head>
         <meta charset="utf-8">
-        <!-- OPENGRAPH TAGS -->
-        <title></title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+        <meta name="description" content="A unique research tool designed specifically for Behind the Camera (カメラの後ろで), this interactive timeline makes information related to Japanese women photographers visible and legible across different historical registers.">
+        <meta name="keywords" content="Behind the Camera, data visualization, interactive timeline, japan, japanese photographer">
+        <meta name="author" content="Steven Geofrey for Behind the Camera (University of British Columbia)">
+        <meta property="og:image" content="https://fluidencodings.com/projects/behind-the-camera/assets/btc-interactive-thumbnail.png">
+        <link rel="stylesheet" href="./style.css">
+        <title>Interactive Timeline インタラクティブ年表 | Behind the Camera</title>
     </head>
     <body>
-        <div id="topbar"><a href="https://behindthecamerajapan.arts.ubc.ca/"><b>← Return to Behind the Camera</b></a></div>
+        <div id="topbar"><a href="https://behindthecamerajapan.arts.ubc.ca/">← Return to Behind the Camera</a></div>
         <div id="banner-container">
-            <!-- <img src="./assets/210707_Behind the Camera_logo_hi res.png"> -->
+            <img src="./assets/Behind-the-Camera-Introduction.jpg">
         </div>
         <header>
-            <h1>Interactive Timeline <span class='jp'>インタラクティブ年表</span></h1>
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Tempor nec feugiat nisl pretium. Morbi tincidunt augue interdum velit euismod in. Quis risus sed vulputate odio ut enim blandit volutpat. Enim blandit volutpat maecenas volutpat blandit aliquam etiam. Vestibulum rhoncus est pellentesque elit ullamcorper dignissim. Pellentesque adipiscing commodo elit at imperdiet dui accumsan sit amet. Viverra aliquet eget sit amet tellus cras adipiscing enim eu. Gravida neque convallis a cras semper auctor neque vitae. Sodales neque sodales ut etiam. Amet mattis vulputate enim nulla aliquet porttitor lacus luctus accumsan. Ut pharetra sit amet aliquam. Mauris in aliquam sem fringilla ut. Dictumst quisque sagittis purus sit amet volutpat consequat mauris. Maecenas sed enim ut sem viverra. Convallis tellus id interdum velit laoreet id.
-            </p>
-            <p>Lorem donec massa sapien faucibus et molestie ac feugiat. Egestas diam in arcu cursus euismod quis viverra nibh. Sit amet volutpat consequat mauris nunc. Eget nulla facilisi etiam dignissim diam quis. In ornare quam viverra orci sagittis. Sit amet consectetur adipiscing elit ut aliquam. Vitae turpis massa sed elementum tempus egestas. Nisl vel pretium lectus quam id leo in vitae. Accumsan in nisl nisi scelerisque eu ultrices. Pharetra et ultrices neque ornare aenean euismod elementum nisi. Dapibus ultrices in iaculis nunc sed augue. Tellus at urna condimentum mattis. Id diam vel quam elementum pulvinar etiam. Lacus vel facilisis volutpat est velit egestas dui. Massa ultricies mi quis hendrerit dolor. Nunc non blandit massa enim nec dui nunc mattis. Est velit egestas dui id ornare. Condimentum vitae sapien pellentesque habitant morbi tristique. Magna fringilla urna porttitor rhoncus dolor purus. Pharetra massa massa ultricies mi.</p>
+            <h1>Interactive Timeline<br><span class='jp'>インタラクティブ年表</span></h1>
+            <p>A unique research tool designed specifically for <a href="https://behindthecamerajapan.arts.ubc.ca/">Behind the Camera (カメラの後ろで)</a>, this interactive timeline makes information related to Japanese women photographers visible and legible across different historical registers. By working vertically, users can select a name on the timeline to unveil a brief biography and chronological record of an individual’s contributions to the world of photography. Working horizontally, users can track the lifespan and career of individual figures in relation to major events in Japanese history and the global history of photography. Compiled from a variety of archives, exhibition catalogues, and online resources, each individual photographer’s timeline concludes with a selected bibliography to inspire further research.</p>
+            <p>Furthermore, when there is a module on the primary <i>Behind the Camera</i> website that addresses a specific photographer’s work, their timeline links to the related resources. Exploring the timeline, users will note the lack of data on women working in the 19th century in contrast with an abundance of information for those working in the mid-1990s onward when women became professional photographers in increasing numbers. Thus, the timeline only includes photographers who were active before the year 2000 with the understanding that contemporary women photographers, while still facing prejudices in the field, are able to maintain a greater degree of representation in the digital realm than their historical counterparts. This timeline will continue to grow as more information on Japanese women in the history of photography is uncovered. </p>
+            
         </header>
         <div id="container">
             <div id="chart--controls">
@@ -44,6 +52,7 @@
                 </div> -->
             </div>
             <div id="chart--container">
+                <div id="resize--overlay"></div>
                 <div id="timelines"></div>
                 <div id="chart"></div>
             </div>
@@ -96,7 +105,8 @@
         </div>
         <footer>
             <h2>About</h2>
-            <p id="btc-about-text"><a target="_blank" href="https://behindthecamerajapan.arts.ubc.ca/">Behind the Camera</a> is an open-source website that creates new critical directions on the history of photography, feminist art history, and the history of modern Japan. The project is made possible by the Social Sciences and Humanities Research Council of Canada, the University of British Columbia, and the International Joint Digital Archiving Center for Japanese Art and Culture (ARC-iJAC), Art Research Center, Ritsumeikan University.</p>
+            <p id="btc-about-text"><a target="_blank" href="https://behindthecamerajapan.arts.ubc.ca/">Behind the Camera</a> is an open-source website that creates new critical directions on the history of photography, feminist art history, and the history of modern Japan. The project is made possible by the Social Sciences and Humanities Research Council of Canada, the University of British Columbia, and the International Joint Digital Archiving Center for Japanese Art and Culture (ARC-iJAC), Art Research Center, Ritsumeikan University.<br><br>
+            This interactive timeline was designed and developed by Steven Geofrey at <a target="_blank" href="https://fluidencodings.com">Fluid Encodings</a>.</p>
             <img id="btc-about-logos" src="./assets/BtC-History-of-the-Project-Logos.png">
         </footer>
         <script src="./main.js"></script>

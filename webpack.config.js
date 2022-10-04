@@ -5,6 +5,7 @@ module.exports = {
     mode: 'development',
     output: {
         path: `${__dirname}/dist`,
+        // publicPath: `./assets`,
         filename: 'main.js',
     },
     plugins: [new HtmlWebpackPlugin({
@@ -37,10 +38,8 @@ module.exports = {
                 ],
             },
             {
-                test: /\.(svg|gif|png|eot|woff|ttf)$/,
-                use: [
-                    'url-loader',
-                ],
+                test: /\.(svg|gif|png|jpg|eot|woff|ttf)$/,
+                type: 'asset/resource'
             },
         ],
     },
