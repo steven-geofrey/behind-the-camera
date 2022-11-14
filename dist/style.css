@@ -450,6 +450,7 @@ footer {
     pointer-events: all;
     fill: #AAAAAA;
     stroke: #FFFFFF;
+    pointer-events: visible;
 }
 
 .photographer--event-active {

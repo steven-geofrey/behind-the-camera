@@ -1132,7 +1132,7 @@ Promise.all(PROMISES).then(response => {
                 el.classed("event--highlight", true);
             
             } else if(type === "individual") {
-            // mouseover event for individual photographer timeline
+                // mouseover event for individual photographer timeline
                 let tooltipY = group.datum()['yPosition'] + tooltipMargin;
 
                 photographerTooltip.style("visibility", "visible")
@@ -1179,7 +1179,7 @@ Promise.all(PROMISES).then(response => {
     let currentWindowWidth = window.innerWidth;
     window.addEventListener("resize", () => {
         let newWindowWidth = window.innerWidth;
-        if(newWindowWidth == currentWidthWidth) return;
+        if(newWindowWidth == currentWindowWidth) return;
 
         // Update width of #chart element
         WIDTH = document.querySelector("#chart").clientWidth;
